@@ -1,0 +1,40 @@
+# Node
+node_modules/
+dist/
+npm-debug.log*
+
+# Environment
+.env
+.env.local
+
+# Logs
+src/logs/*.log
+logs/
+
+# Uploads / Storage (dev)
+storage/models/*
+storage/textures/*
+storage/hdr/*
+storage/thumbnails/*
+storage/screenshots/*
+storage/temp/*
+/uploads/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# TypeScript
+*.tsbuildinfo
+
+# Test coverage
+coverage/
+
+# PM2
+.pm2/

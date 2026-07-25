@@ -1,0 +1,117 @@
+version: "3.9"
+
+services:
+  # ── API ──────────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: navish_api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://navish:secret@postgres:5432/navish_arc
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      AWS_S3_ENDPOINT: http://minio:9000
+    env_file:
+      - .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    volumes:
+      - api_storage:/app/storage
+      - api_logs:/app/src/logs
+    networks:
+      - navish_net
+
+  # ── PostgreSQL ────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: navish_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: navish_arc
+      POSTGRES_USER: navish
+      POSTGRES_PASSWORD: secret
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U navish -d navish_arc"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - navish_net
+
+  # ── Redis ────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: navish_redis
+    restart: unless-stopped
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - navish_net
+
+  # ── MinIO (S3-compatible local storage) ───────────────────────────────────
+  minio:
+    image: minio/minio:latest
+    container_name: navish_minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    networks:
+      - navish_net
+
+  # ── Adminer (DB UI) ───────────────────────────────────────────────────────
+  adminer:
+    image: adminer:latest
+    container_name: navish_adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    networks:
+      - navish_net
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+  api_storage:
+  api_logs:
+
+networks:
+  navish_net:
+    driver: bridge

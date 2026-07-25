@@ -1,0 +1,853 @@
+// This is your Prisma schema file
+// Learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  ADMIN
+  ARCHITECT
+  CLIENT
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  PENDING_VERIFICATION
+}
+
+enum ProjectStatus {
+  DRAFT
+  IN_PROGRESS
+  REVIEW
+  APPROVED
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ModelStatus {
+  UPLOADING
+  PROCESSING
+  READY
+  ERROR
+  ARCHIVED
+}
+
+enum ModelFormat {
+  GLB
+  GLTF
+  FBX
+  OBJ
+  SKP
+  THREE_DS
+}
+
+enum ShareLinkStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+}
+
+enum UploadStatus {
+  PENDING
+  UPLOADING
+  PROCESSING
+  COMPLETED
+  FAILED
+  ABORTED
+}
+
+enum NotificationType {
+  PROJECT_SHARED
+  PROJECT_UPDATED
+  MODEL_READY
+  MODEL_FAILED
+  COMMENT_ADDED
+  SHARE_ACCESSED
+  SYSTEM
+}
+
+enum AnalyticsEventType {
+  PROJECT_VIEW
+  MODEL_VIEW
+  MATERIAL_CHANGE
+  LIGHTING_CHANGE
+  SHARE_ACCESS
+  DOWNLOAD
+  VR_SESSION_START
+  VR_SESSION_END
+  SCREENSHOT
+}
+
+enum AuditAction {
+  CREATE
+  READ
+  UPDATE
+  DELETE
+  LOGIN
+  LOGOUT
+  EXPORT
+  SHARE
+  REVOKE
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// USER & AUTH
+// ─────────────────────────────────────────────────────────────────────────────
+
+model User {
+  id                   String     @id @default(uuid())
+  email                String     @unique
+  password             String
+  firstName            String
+  lastName             String
+  displayName          String?
+  avatarUrl            String?
+  role                 UserRole   @default(CLIENT)
+  status               UserStatus @default(PENDING_VERIFICATION)
+  phone                String?
+  jobTitle             String?
+  company              String?
+  emailVerified        Boolean    @default(false)
+  emailVerifiedAt      DateTime?
+  twoFactorEnabled     Boolean    @default(false)
+  twoFactorSecret      String?
+  lastLoginAt          DateTime?
+  lastLoginIp          String?
+  loginCount           Int        @default(0)
+  passwordChangedAt    DateTime?
+  createdAt            DateTime   @default(now())
+  updatedAt            DateTime   @updatedAt
+  deletedAt            DateTime?
+
+  // Relations
+  refreshTokens        RefreshToken[]
+  passwordResets       PasswordReset[]
+  emailVerifications   EmailVerification[]
+  permissions          UserPermission[]
+  ownedProjects        Project[]          @relation("ProjectOwner")
+  assignedProjects     ProjectMember[]
+  clientProfile        Client?            @relation("ClientUser")
+  notifications        Notification[]
+  auditLogs            AuditLog[]         @relation("AuditActor")
+  activityLogs         ActivityLog[]
+  settings             UserSettings?
+  uploadSessions       UploadSession[]
+  portfolioItems       PortfolioItem[]
+
+  @@index([email])
+  @@index([role])
+  @@index([status])
+  @@index([deletedAt])
+  @@map("users")
+}
+
+model RefreshToken {
+  id          String   @id @default(uuid())
+  userId      String
+  token       String   @unique // hashed
+  deviceId    String?
+  deviceInfo  String?
+  ipAddress   String?
+  expiresAt   DateTime
+  revokedAt   DateTime?
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("refresh_tokens")
+}
+
+model PasswordReset {
+  id          String   @id @default(uuid())
+  userId      String
+  tokenHash   String   @unique
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@map("password_resets")
+}
+
+model EmailVerification {
+  id          String   @id @default(uuid())
+  userId      String
+  tokenHash   String   @unique
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("email_verifications")
+}
+
+model Permission {
+  id          String           @id @default(uuid())
+  name        String           @unique // e.g. "projects:delete"
+  description String?
+  group       String           // e.g. "projects"
+  createdAt   DateTime         @default(now())
+
+  userPerms   UserPermission[]
+
+  @@index([group])
+  @@map("permissions")
+}
+
+model UserPermission {
+  id           String     @id @default(uuid())
+  userId       String
+  permissionId String
+  grantedAt    DateTime   @default(now())
+  grantedBy    String?
+
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, permissionId])
+  @@map("user_permissions")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CLIENTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Client {
+  id              String    @id @default(uuid())
+  userId          String    @unique // 1:1 with User (the client login account)
+  companyName     String
+  companyLogo     String?
+  industry        String?
+  website         String?
+  address         String?
+  city            String?
+  country         String?
+  contactPhone    String?
+  notes           String?
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  user            User      @relation("ClientUser", fields: [userId], references: [id])
+  projects        Project[] @relation("ClientProjects")
+  shareLinks      ShareLink[]
+
+  @@index([userId])
+  @@index([deletedAt])
+  @@map("clients")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PROJECTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Project {
+  id              String        @id @default(uuid())
+  name            String
+  description     String?
+  slug            String        @unique
+  status          ProjectStatus @default(DRAFT)
+  thumbnailUrl    String?
+  coverImageUrl   String?
+  ownerId         String        // Admin/Architect who owns it
+  clientId        String?       // Assigned client
+  tags            String[]      @default([])
+  metadata        Json?         @default("{}")
+  isPublic        Boolean       @default(false)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  deletedAt       DateTime?
+  publishedAt     DateTime?
+
+  owner           User          @relation("ProjectOwner", fields: [ownerId], references: [id])
+  client          Client?       @relation("ClientProjects", fields: [clientId], references: [id])
+  members         ProjectMember[]
+  rooms           Room[]
+  versions        ProjectVersion[]
+  shareLinks      ShareLink[]
+  analytics       Analytics[]
+  notifications   Notification[]
+
+  @@index([ownerId])
+  @@index([clientId])
+  @@index([status])
+  @@index([slug])
+  @@index([deletedAt])
+  @@map("projects")
+}
+
+model ProjectMember {
+  id          String    @id @default(uuid())
+  projectId   String
+  userId      String
+  role        UserRole  @default(CLIENT)
+  addedAt     DateTime  @default(now())
+
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@map("project_members")
+}
+
+model ProjectVersion {
+  id          String   @id @default(uuid())
+  projectId   String
+  version     String   // e.g. "1.0.0"
+  description String?
+  snapshot    Json     // full project state snapshot
+  createdBy   String
+  createdAt   DateTime @default(now())
+
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@map("project_versions")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ROOMS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Room {
+  id              String    @id @default(uuid())
+  projectId       String
+  name            String
+  description     String?
+  sortOrder       Int       @default(0)
+  thumbnailUrl    String?
+  floorPlanUrl    String?
+  dimensions      Json?     // { width, height, depth }
+  metadata        Json?     @default("{}")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  project         Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  models          RoomModel[]
+  lighting        Lighting[]
+  environments    Environment[]
+
+  @@index([projectId])
+  @@index([deletedAt])
+  @@map("rooms")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MODELS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Model {
+  id              String      @id @default(uuid())
+  name            String
+  description     String?
+  format          ModelFormat
+  status          ModelStatus @default(UPLOADING)
+  fileSize        BigInt
+  originalName    String
+  storagePath     String      // S3 key
+  publicUrl       String?
+  thumbnailUrl    String?
+  previewUrls     String[]    @default([])
+  checksum        String?     // SHA-256
+  mimeType        String?
+  boundingBox     Json?       // { min: {x,y,z}, max: {x,y,z} }
+  dimensions      Json?       // { width, height, depth }
+  polyCount       Int?
+  vertexCount     Int?
+  textureCount    Int?
+  hasDraco        Boolean     @default(false)
+  hasKtx2         Boolean     @default(false)
+  authorName      String?
+  authorEmail     String?
+  tags            String[]    @default([])
+  metadata        Json?       @default("{}")
+  uploadedById    String
+  errorMessage    String?
+  originalSize    BigInt?
+  optimizedSize   BigInt?
+  compressionRatio Float?
+  storageSaved    BigInt?
+  processingTime  Int?        // in milliseconds
+  processedAt     DateTime?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  deletedAt       DateTime?
+
+  versions        ModelVersion[]
+  roomAssignments RoomModel[]
+  materials       Material[]
+  textures        ModelTexture[]
+
+  @@index([status])
+  @@index([format])
+  @@index([uploadedById])
+  @@index([deletedAt])
+  @@map("models")
+}
+
+model ModelVersion {
+  id          String      @id @default(uuid())
+  modelId     String
+  version     Int         // sequential: 1, 2, 3...
+  storagePath String
+  fileSize    BigInt
+  checksum    String?
+  changeNotes String?
+  createdBy   String
+  createdAt   DateTime    @default(now())
+
+  model       Model       @relation(fields: [modelId], references: [id], onDelete: Cascade)
+
+  @@unique([modelId, version])
+  @@index([modelId])
+  @@map("model_versions")
+}
+
+model RoomModel {
+  id          String    @id @default(uuid())
+  roomId      String
+  modelId     String
+  position    Json?     // { x, y, z }
+  rotation    Json?     // { x, y, z }
+  scale       Json?     // { x, y, z }
+  isActive    Boolean   @default(true)
+  sortOrder   Int       @default(0)
+  addedAt     DateTime  @default(now())
+
+  room        Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  model       Model     @relation(fields: [modelId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, modelId])
+  @@map("room_models")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MATERIALS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Material {
+  id               String    @id @default(uuid())
+  modelId          String
+  objectId         String    // mesh ID inside the 3D model
+  name             String
+  baseColor        String?   // Hex color
+  roughness        Float     @default(0.5)
+  metallic         Float     @default(0.0)
+  opacity          Float     @default(1.0)
+  emissiveColor    String?
+  emissiveIntensity Float    @default(0.0)
+  normalScale      Float     @default(1.0)
+  reflectionLevel  Float     @default(0.5)
+  doubleSided      Boolean   @default(false)
+  wireframe        Boolean   @default(false)
+  castShadow       Boolean   @default(true)
+  receiveShadow    Boolean   @default(true)
+  textureMap       String?   // Texture ID → albedo
+  normalMap        String?   // Texture ID
+  roughnessMap     String?   // Texture ID
+  metallicMap      String?   // Texture ID
+  emissiveMap      String?   // Texture ID
+  aoMap            String?   // Texture ID → ambient occlusion
+  customProperties Json?     @default("{}")
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  model            Model     @relation(fields: [modelId], references: [id], onDelete: Cascade)
+
+  @@index([modelId])
+  @@index([objectId])
+  @@map("materials")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TEXTURES
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Texture {
+  id            String         @id @default(uuid())
+  name          String
+  description   String?
+  fileSize      BigInt
+  originalName  String
+  storagePath   String
+  publicUrl     String?
+  thumbnailUrl  String?
+  mimeType      String
+  width         Int?
+  height        Int?
+  channels      Int?
+  hasAlpha      Boolean        @default(false)
+  isCompressed  Boolean        @default(false) // KTX2 / Basis
+  checksum      String?
+  tags          String[]       @default([])
+  uploadedById  String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  deletedAt     DateTime?
+
+  modelTextures ModelTexture[]
+
+  @@index([uploadedById])
+  @@index([deletedAt])
+  @@map("textures")
+}
+
+model ModelTexture {
+  id          String   @id @default(uuid())
+  modelId     String
+  textureId   String
+  slot        String   // albedo | normal | roughness | metallic | emissive | ao
+  addedAt     DateTime @default(now())
+
+  model       Model    @relation(fields: [modelId], references: [id], onDelete: Cascade)
+  texture     Texture  @relation(fields: [textureId], references: [id], onDelete: Cascade)
+
+  @@unique([modelId, textureId, slot])
+  @@map("model_textures")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LIGHTING
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Lighting {
+  id                  String    @id @default(uuid())
+  roomId              String
+  name                String    @default("Default Lighting")
+  isActive            Boolean   @default(true)
+  // Ambient
+  ambientColor        String    @default("#ffffff")
+  ambientIntensity    Float     @default(0.5)
+  // Directional / Sun
+  sunEnabled          Boolean   @default(true)
+  sunColor            String    @default("#ffffff")
+  sunIntensity        Float     @default(1.0)
+  sunPositionX        Float     @default(1.0)
+  sunPositionY        Float     @default(2.0)
+  sunPositionZ        Float     @default(1.0)
+  // Shadows
+  shadowsEnabled      Boolean   @default(true)
+  shadowBias          Float     @default(-0.001)
+  shadowMapSize       Int       @default(2048)
+  shadowSoftness      Float     @default(1.0)
+  // Environment / IBL
+  environmentMapId    String?   // FK to Environment
+  exposure            Float     @default(1.0)
+  // Point Lights (JSON array)
+  pointLights         Json?     @default("[]")
+  // Spot Lights (JSON array)
+  spotLights          Json?     @default("[]")
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  room                Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  environment         Environment? @relation(fields: [environmentMapId], references: [id])
+
+  @@index([roomId])
+  @@map("lighting")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ENVIRONMENT
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Environment {
+  id            String    @id @default(uuid())
+  roomId        String
+  name          String
+  description   String?
+  hdrFileKey    String?   // S3 key for .hdr / .exr file
+  hdrPublicUrl  String?
+  thumbnailUrl  String?
+  intensity     Float     @default(1.0)
+  rotation      Float     @default(0.0)
+  isDefault     Boolean   @default(false)
+  preset        String?   // warehouse | outdoor | studio | custom
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  room          Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  lightings     Lighting[]
+
+  @@index([roomId])
+  @@map("environments")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// UPLOADS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model UploadSession {
+  id              String       @id @default(uuid())
+  userId          String
+  s3Key           String
+  s3UploadId      String?      // multipart upload ID
+  fileName        String
+  mimeType        String
+  fileSize        BigInt
+  status          UploadStatus @default(PENDING)
+  chunkCount      Int?
+  completedChunks Int          @default(0)
+  errorMessage    String?
+  metadata        Json?        @default("{}")
+  expiresAt       DateTime
+  completedAt     DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@index([s3Key])
+  @@map("upload_sessions")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SHARE LINKS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model ShareLink {
+  id                String          @id @default(uuid())
+  projectId         String
+  clientId          String?
+  tokenHash         String          @unique // SHA-256 of the raw token
+  status            ShareLinkStatus @default(ACTIVE)
+  passwordHash      String?         // bcrypt hash, null = no password
+  expiresAt         DateTime?
+  maxAccessCount    Int?            // null = unlimited
+  accessCount       Int             @default(0)
+  allowDownload     Boolean         @default(false)
+  isOneTime         Boolean         @default(false) // TODO: implement OTA logic
+  revokedAt         DateTime?
+  revokedById       String?
+  lastAccessedAt    DateTime?
+  lastAccessedIp    String?
+  metadata          Json?           @default("{}")
+  createdById       String
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  project           Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  client            Client?         @relation(fields: [clientId], references: [id])
+  accessLogs        ShareAccessLog[]
+
+  @@index([projectId])
+  @@index([clientId])
+  @@index([tokenHash])
+  @@index([status])
+  @@map("share_links")
+}
+
+model ShareAccessLog {
+  id           String    @id @default(uuid())
+  shareLinkId  String
+  ipAddress    String?
+  userAgent    String?
+  referer      String?
+  accessedAt   DateTime  @default(now())
+
+  shareLink    ShareLink @relation(fields: [shareLinkId], references: [id], onDelete: Cascade)
+
+  @@index([shareLinkId])
+  @@map("share_access_logs")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ANALYTICS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Analytics {
+  id          String             @id @default(uuid())
+  projectId   String?
+  entityType  String             // project | model | room | share
+  entityId    String
+  eventType   AnalyticsEventType
+  userId      String?
+  sessionId   String?
+  ipAddress   String?
+  userAgent   String?
+  duration    Int?               // seconds
+  metadata    Json?              @default("{}")
+  createdAt   DateTime           @default(now())
+
+  project     Project?           @relation(fields: [projectId], references: [id])
+
+  @@index([projectId])
+  @@index([entityType, entityId])
+  @@index([eventType])
+  @@index([createdAt])
+  @@map("analytics")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NOTIFICATIONS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Notification {
+  id          String           @id @default(uuid())
+  userId      String
+  projectId   String?
+  type        NotificationType
+  title       String
+  body        String
+  isRead      Boolean          @default(false)
+  readAt      DateTime?
+  actionUrl   String?
+  metadata    Json?            @default("{}")
+  createdAt   DateTime         @default(now())
+
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project     Project?         @relation(fields: [projectId], references: [id])
+
+  @@index([userId, isRead])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AUDIT & ACTIVITY
+// ─────────────────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id          String      @id @default(uuid())
+  actorId     String?
+  action      AuditAction
+  entityType  String
+  entityId    String?
+  oldValue    Json?
+  newValue    Json?
+  ipAddress   String?
+  userAgent   String?
+  requestId   String?
+  createdAt   DateTime    @default(now())
+
+  actor       User?       @relation("AuditActor", fields: [actorId], references: [id])
+
+  @@index([actorId])
+  @@index([entityType, entityId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model ActivityLog {
+  id          String   @id @default(uuid())
+  userId      String
+  action      String
+  description String?
+  entityType  String?
+  entityId    String?
+  metadata    Json?    @default("{}")
+  createdAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("activity_logs")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SETTINGS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model UserSettings {
+  id                   String   @id @default(uuid())
+  userId               String   @unique
+  language             String   @default("en")
+  timezone             String   @default("UTC")
+  dateFormat           String   @default("YYYY-MM-DD")
+  theme                String   @default("dark")
+  notifyProjectUpdates Boolean  @default(true)
+  notifyModelReady     Boolean  @default(true)
+  notifyShareAccess    Boolean  @default(true)
+  notifyByEmail        Boolean  @default(true)
+  defaultRenderMode    String   @default("realistic")
+  autoSaveInterval     Int      @default(30) // seconds
+  customSettings       Json?    @default("{}")
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_settings")
+}
+
+model SystemSettings {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  value       Json
+  description String?
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+  @@map("system_settings")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// OTP
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Otp {
+  id        String   @id @default(uuid())
+  email     String
+  codeHash  String   // SHA-256 hash of the OTP code
+  purpose   String   // "EMAIL_VERIFICATION" | "PASSWORD_RESET" | etc.
+  attempts  Int      @default(0)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([email, purpose])
+  @@map("otps")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PORTFOLIO
+// ─────────────────────────────────────────────────────────────────────────────
+
+model PortfolioItem {
+  id            String      @id @default(uuid())
+  title         String
+  category      String      @default("Residential")
+  description   String?     @db.Text
+  modelUrl      String?
+  thumbnailUrl  String?
+  sizeBytes     BigInt?
+  format        String?
+  isPublic      Boolean     @default(true)
+  createdById   String
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  createdBy     User        @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([category])
+  @@index([isPublic])
+  @@index([createdById])
+  @@map("portfolio_items")
+}
