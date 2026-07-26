@@ -197,16 +197,20 @@ export class UploadService {
     let bytesReceived = 0;
     const startTime = Date.now();
 
-    const emitProgress = (percentage: number, uploadedMb: number, totalMb: number, speed: number, remainingTime: number) => {
+    const emitProgress = (percentage: number, uploadedMb: number, totalMb: number, speed: number, remainingTime: number, bytesReceived: number, totalBytes: number, speedBytesPerSec: number) => {
       try {
         const io = socketService.getIO();
         io.to(`user:${userId}`).emit('upload-progress', {
           sessionId,
           percentage: Math.round(percentage * 100) / 100,
+          uploadedBytes: bytesReceived,
+          totalBytes,
           uploadedMB: Math.round(uploadedMb * 100) / 100,
           totalMB: Math.round(totalMb * 100) / 100,
+          speedBytesPerSec: Math.round(speedBytesPerSec),
           speed: Math.round(speed * 100) / 100,
           estimatedRemainingTime: Math.round(remainingTime),
+          remainingMs: Math.round(remainingTime * 1000),
         });
       } catch (err: any) {
         // Suppress if socket service isn't active
@@ -227,7 +231,7 @@ export class UploadService {
         const remainingBytes = totalBytes - bytesReceived;
         const remainingSeconds = remainingBytes / (speedBytesPerSec || 1);
 
-        emitProgress(percentage, uploadedMb, totalMb, speedMbPerSec, remainingSeconds);
+        emitProgress(percentage, uploadedMb, totalMb, speedMbPerSec, remainingSeconds, bytesReceived, totalBytes, speedBytesPerSec);
       });
 
       stream.on('end', () => resolve());

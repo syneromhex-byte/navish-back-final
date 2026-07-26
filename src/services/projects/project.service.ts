@@ -12,16 +12,16 @@ export class ProjectService {
     return projectRepository.create(dto, ownerId);
   }
 
-  async getProjectById(id: string, userId: string, userRole: UserRole) {
+  async getProjectById(id: string, userId: string, userRole: UserRole, userEmail?: string) {
     const project = await projectRepository.findById(id);
     if (!project) throw ApiError.notFound('Project not found');
 
-    this.assertAccess(project, userId, userRole);
+    this.assertAccess(project, userId, userRole, userEmail);
     return project;
   }
 
-  async listProjects(query: ListProjectsQuery, userId: string, userRole: UserRole) {
-    return projectRepository.findMany(query, userId, userRole);
+  async listProjects(query: ListProjectsQuery, userId: string, userRole: UserRole, userEmail?: string) {
+    return projectRepository.findMany(query, userId, userRole, userEmail);
   }
 
   async updateProject(id: string, dto: UpdateProjectDto, userId: string, userRole: UserRole) {
@@ -93,12 +93,18 @@ export class ProjectService {
     return projectRepository.getVersions(projectId);
   }
 
-  private assertAccess(project: any, userId: string, userRole: UserRole): void {
+  private assertAccess(project: any, userId: string, userRole: UserRole, userEmail?: string): void {
     if (userRole === UserRole.ADMIN || userRole === UserRole.ARCHITECT) return;
     if (project.ownerId === userId) return;
     const isMember = project.members?.some((m: any) => m.userId === userId);
-    const isClient = project.client?.userId === userId;
-    if (!isMember && !isClient && !project.isPublic) {
+    const isClientUser = project.client?.userId === userId;
+    const isClientEmailMatch =
+      userEmail &&
+      ((project.clientEmail && project.clientEmail.toLowerCase() === userEmail.toLowerCase()) ||
+        (project.client?.user?.email && project.client.user.email.toLowerCase() === userEmail.toLowerCase()) ||
+        (project.metadata?.clientEmail && project.metadata.clientEmail.toLowerCase() === userEmail.toLowerCase()));
+
+    if (!isMember && !isClientUser && !isClientEmailMatch && !project.isPublic) {
       throw ApiError.forbidden('Access denied to this project');
     }
   }

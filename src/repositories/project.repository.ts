@@ -84,12 +84,24 @@ export class ProjectRepository {
     };
   }
 
-  async findMany(query: ListProjectsQuery, userId: string, userRole: string) {
+  async findMany(query: ListProjectsQuery, userId: string, userRole: string, userEmail?: string) {
     const { page, limit, search, status, clientId, sortBy, sortOrder } = query;
+
+    const clientDbId = userRole === 'CLIENT' ? await this.getClientIdByUserId(userId) : undefined;
+
+    const clientFilter: Prisma.ProjectWhereInput[] = [];
+    if (userRole === 'CLIENT') {
+      if (clientDbId) clientFilter.push({ clientId: clientDbId });
+      if (userEmail) {
+        clientFilter.push({ metadata: { path: ['clientEmail'], equals: userEmail.toLowerCase() } });
+        clientFilter.push({ metadata: { path: ['clientEmail'], equals: userEmail } });
+      }
+      clientFilter.push({ isPublic: true });
+    }
 
     const where: Prisma.ProjectWhereInput = {
       deletedAt: null,
-      ...(userRole === 'CLIENT' ? { clientId: await this.getClientIdByUserId(userId) } : {}),
+      ...(userRole === 'CLIENT' ? { OR: clientFilter } : {}),
       ...(status ? { status: status as any } : {}),
       ...(clientId ? { clientId } : {}),
       ...(search
