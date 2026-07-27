@@ -48,7 +48,7 @@ export class ModelRepository {
         orderBy: { [sortBy]: sortOrder },
         select: {
           id: true, name: true, format: true, status: true, fileSize: true,
-          thumbnailUrl: true, createdAt: true, updatedAt: true,
+          storagePath: true, thumbnailUrl: true, createdAt: true, updatedAt: true,
           _count: { select: { roomAssignments: true } },
         },
       }),

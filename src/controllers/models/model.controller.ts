@@ -9,6 +9,12 @@ export class ModelController {
     return ApiResponse.success(res, model);
   });
 
+  getPresignedUrl = asyncHandler(async (req: Request, res: Response) => {
+    const expiresIn = req.query.expiresIn ? parseInt(req.query.expiresIn as string, 10) : 3600;
+    const result = await modelService.getPresignedUrl(req.params.id, expiresIn);
+    return ApiResponse.success(res, result, 'Presigned GET URL generated successfully');
+  });
+
   listModels = asyncHandler(async (req: Request, res: Response) => {
     const result = await modelService.listModels(req.query as any);
     return ApiResponse.paginated(res, result.data, result.meta);

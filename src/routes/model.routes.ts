@@ -9,6 +9,7 @@ router.use(authenticate);
 
 router.get('/', modelController.listModels);
 router.get('/:id', modelController.getModel);
+router.get('/:id/presigned-url', modelController.getPresignedUrl);
 router.put('/:id', modelController.updateModel);
 router.delete('/:id', modelController.deleteModel);
 

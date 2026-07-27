@@ -2,6 +2,7 @@ import {
   initiateMultipartUpload,
   getPresignedPutUrl,
   getPresignedPartUrl,
+  getPresignedGetUrl,
   completeMultipartUpload,
   abortMultipartUpload,
   buildS3Key,
@@ -153,9 +154,12 @@ export class UploadService {
       // Redis offline or queue error log
     }
 
+    const presignedGetUrl = await getPresignedGetUrl(modelKey, PRESIGNED_EXPIRY);
+
     return {
       ...model,
       modelUrl: publicUrl,
+      presignedUrl: presignedGetUrl,
     };
   }
 

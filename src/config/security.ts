@@ -33,8 +33,28 @@ export const corsConfig = cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID', 'X-Device-ID', 'ETag', 'etag'],
-  exposedHeaders: ['X-Request-ID', 'X-RateLimit-Limit', 'X-RateLimit-Remaining', 'ETag', 'etag'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-Request-ID',
+    'X-Device-ID',
+    'ETag',
+    'etag',
+    'Range',
+    'x-amz-user-agent',
+    'x-amz-date',
+    'x-amz-content-sha256',
+  ],
+  exposedHeaders: [
+    'X-Request-ID',
+    'X-RateLimit-Limit',
+    'X-RateLimit-Remaining',
+    'ETag',
+    'etag',
+    'Content-Range',
+    'Content-Length',
+    'Accept-Ranges',
+  ],
   maxAge: 86400, // 24h preflight cache
 });
 
