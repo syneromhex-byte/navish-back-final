@@ -3,6 +3,7 @@ import { generateTokenPair } from '../utils/crypto';
 import { hashPassword, verifyPassword } from '../auth/bcrypt';
 import type { CreateShareLinkDto, UpdateShareLinkDto } from '../validators/share.validator';
 import { ShareLinkStatus } from '@prisma/client';
+import { formatProjectResponse } from './project.repository';
 
 export class ShareRepository {
   async create(data: CreateShareLinkDto, createdById: string): Promise<{ shareLink: object; rawToken: string }> {
@@ -30,17 +31,31 @@ export class ShareRepository {
   }
 
   async findByTokenHash(tokenHash: string) {
-    return prisma.shareLink.findFirst({
+    const link = await prisma.shareLink.findFirst({
       where: { tokenHash, status: ShareLinkStatus.ACTIVE },
       include: {
         project: {
           include: {
-            rooms: { where: { deletedAt: null }, orderBy: { sortOrder: 'asc' } },
+            rooms: {
+              where: { deletedAt: null },
+              orderBy: { sortOrder: 'asc' },
+              include: {
+                models: {
+                  where: { isActive: true },
+                  include: { model: true },
+                },
+              },
+            },
           },
         },
         client: true,
       },
     });
+    if (!link || !link.project) return link;
+    return {
+      ...link,
+      project: formatProjectResponse(link.project),
+    };
   }
 
   async findById(id: string) {

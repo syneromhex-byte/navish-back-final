@@ -72,6 +72,25 @@ export const initUploadWorker = () => {
         logger.info(`Automatically placed model ${modelId} inside Room ${roomId}`);
       }
 
+      if (projectId) {
+        const project = await prisma.project.findUnique({ where: { id: projectId } });
+        if (project) {
+          const prevMeta = (project.metadata as Record<string, any>) || {};
+          await prisma.project.update({
+            where: { id: projectId },
+            data: {
+              metadata: {
+                ...prevMeta,
+                modelId,
+                model_id: modelId,
+                fileUrl: model?.publicUrl || prevMeta.fileUrl || prevMeta.modelUrl,
+                modelUrl: model?.publicUrl || prevMeta.modelUrl || prevMeta.fileUrl,
+              },
+            },
+          });
+        }
+      }
+
       logger.info(`Successfully completed processing for Model ${modelId}`);
       return { success: true };
     } catch (err: any) {
