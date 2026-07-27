@@ -61,7 +61,7 @@ export class ModelService {
         }
         return {
           ...model,
-          presignedUrl: presignedUrl || model.thumbnailUrl,
+          presignedUrl: presignedUrl || model.publicUrl,
         };
       })
     );

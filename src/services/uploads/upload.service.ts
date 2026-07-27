@@ -1,5 +1,6 @@
 import {
   initiateMultipartUpload,
+  uploadToS3,
   getPresignedPutUrl,
   getPresignedPartUrl,
   getPresignedGetUrl,
@@ -221,9 +222,13 @@ export class UploadService {
       }
     };
 
+    const chunks: Buffer[] = [];
+
     await new Promise<void>((resolve, reject) => {
       stream.on('data', (chunk) => {
-        bytesReceived += chunk.length;
+        const buf = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+        chunks.push(buf);
+        bytesReceived += buf.length;
         const elapsedSeconds = (Date.now() - startTime) / 1000 || 0.001;
         const percentage = (bytesReceived / totalBytes) * 100;
         const uploadedMb = bytesReceived / (1024 * 1024);
@@ -241,6 +246,9 @@ export class UploadService {
       stream.on('end', () => resolve());
       stream.on('error', (err) => reject(err));
     });
+
+    const fileBuffer = Buffer.concat(chunks);
+    await uploadToS3(session.s3Key, fileBuffer, session.mimeType);
 
     // Complete the upload process
     return this.completeUpload({
