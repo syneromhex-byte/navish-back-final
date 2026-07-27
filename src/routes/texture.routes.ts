@@ -10,9 +10,8 @@ router.use(authenticate);
 
 router.post('/', uploadTexture, textureController.uploadTexture);
 router.get('/', textureController.listTextures);
+router.get('/:id/signed-url', textureController.getSignedUrl);
 router.get('/:id', textureController.getTexture);
 router.delete('/:id', textureController.deleteTexture);
-
-router.get('/:id/signed-url', textureController.getSignedUrl);
 
 export default router;

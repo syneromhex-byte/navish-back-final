@@ -8,11 +8,14 @@ const router = Router();
 router.use(authenticate);
 
 router.get('/', modelController.listModels);
-router.get('/:id', modelController.getModel);
+
+// Specific routes first
 router.get('/:id/presigned-url', modelController.getPresignedUrl);
+router.get('/:id/versions', modelController.getVersions);
+
+// Dynamic :id routes last
+router.get('/:id', modelController.getModel);
 router.put('/:id', modelController.updateModel);
 router.delete('/:id', modelController.deleteModel);
-
-router.get('/:id/versions', modelController.getVersions);
 
 export default router;
