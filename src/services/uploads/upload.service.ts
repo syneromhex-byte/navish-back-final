@@ -25,6 +25,10 @@ const PRESIGNED_EXPIRY = 3600; // 1 hour
 const PART_SIZE = 10 * 1024 * 1024; // 10 MB per part
 
 export class UploadService {
+  async getModelUrl(modelId: string, fileName: string): Promise<string> {
+    return `temp/${modelId}/${fileName}`;
+  }
+
   async initiateUpload(dto: InitiateUploadDto, userId: string) {
     const safeFilename = sanitizeFilename(dto.fileName);
     const ext = getExtension(safeFilename);

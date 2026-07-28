@@ -5,6 +5,10 @@ import { UserRole } from '@prisma/client';
 import { logger } from '../../config/logger';
 
 export class ModelService {
+  async getModelUrl(modelId: string, fileName: string): Promise<string> {
+    return `temp/${modelId}/${fileName}`;
+  }
+
   async getModelById(id: string) {
     const model = await modelRepository.findById(id);
     if (!model) throw ApiError.notFound('Model not found');

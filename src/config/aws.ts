@@ -253,3 +253,8 @@ export const getS3Url = (key: string): string => {
 // ── Build S3 key ──────────────────────────────────────────────────────────────
 export const buildS3Key = (...parts: string[]): string =>
   parts.join('/').replace(/\/+/g, '/');
+
+export const getModelUrl = async (modelId: string, fileName: string): Promise<string> => {
+  return `temp/${modelId}/${fileName}`;
+};
+
