@@ -37,7 +37,6 @@ redis.on('reconnecting', () => logger.info('Redis reconnecting...'));
 // ── Queue names ───────────────────────────────────────────────────────────────
 export const QueueNames = {
   UPLOAD: 'upload-processing',
-  THUMBNAIL: 'thumbnail-generation',
   ANALYTICS: 'analytics-processing',
   EMAIL: 'email-queue',
   CLEANUP: 'file-cleanup',
@@ -79,7 +78,6 @@ export const getQueues = () => {
   if (!_queues) {
     _queues = {
       [QueueNames.UPLOAD]: createQueue(QueueNames.UPLOAD),
-      [QueueNames.THUMBNAIL]: createQueue(QueueNames.THUMBNAIL),
       [QueueNames.ANALYTICS]: createQueue(QueueNames.ANALYTICS),
       [QueueNames.EMAIL]: createQueue(QueueNames.EMAIL),
       [QueueNames.CLEANUP]: createQueue(QueueNames.CLEANUP),

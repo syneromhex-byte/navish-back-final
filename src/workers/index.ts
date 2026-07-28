@@ -1,5 +1,4 @@
 import { logger } from '../config/logger';
-import { initThumbnailWorker } from './thumbnail.worker';
 import { initUploadWorker } from './upload.worker';
 import { initEmailWorker } from './email.worker';
 import { initAnalyticsWorker } from './analytics.worker';
@@ -9,7 +8,6 @@ export const startWorkers = async () => {
   logger.info('Starting Bull background queue processors...');
 
   try {
-    initThumbnailWorker();
     initUploadWorker();
     initEmailWorker();
     initAnalyticsWorker();

@@ -136,12 +136,6 @@ export class UploadService {
     // Enqueue processing job safely (does not fail upload if Redis is offline)
     try {
       const queues = getQueues();
-      await queues[QueueNames.THUMBNAIL].add('generate-thumbnail', {
-        modelId: model.id,
-        s3Key: modelKey,
-        format,
-      });
-
       await queues[QueueNames.UPLOAD].add('process-model', {
         modelId: model.id,
         uploadSessionId: session.id,
