@@ -23,7 +23,7 @@ export const initThumbnailWorker = () => {
         'UklGRhoAAABXRUJQVlA4TA0AAAAvAAAAEAcQERGIiP4HAA==',
         'base64'
       );
-      const thumbnailKey = buildS3Key(S3Prefix.THUMBNAILS, 'models', `${modelId}.webp`);
+      const thumbnailKey = buildS3Key(S3Prefix.THUMBNAILS, S3Prefix.TEMP, `${modelId}.webp`);
       const thumbnailUrl = await uploadToS3(thumbnailKey, mockWebp, 'image/webp');
 
       // 3. Update Model

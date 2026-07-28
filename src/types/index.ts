@@ -111,7 +111,7 @@ export interface ViewerSession {
 
 // ── S3 Key Prefixes ───────────────────────────────────────────────────────────
 export const S3Prefix = {
-  MODELS: 'models',
+  MODELS: 'temp',
   TEXTURES: 'textures',
   HDR: 'hdr',
   THUMBNAILS: 'thumbnails',

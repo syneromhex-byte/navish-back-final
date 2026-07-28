@@ -17,7 +17,7 @@ export const isAllowedExtension = (filename: string, allowedList: string[]): boo
 
 /**
  * Build a namespaced S3 storage key.
- *  e.g. models/<projectId>/<uuid>.glb
+ *  e.g. temp/<projectId>/<uuid>.glb
  */
 export const buildStorageKey = (prefix: string, ...segments: string[]): string => {
   return [prefix, ...segments].filter(Boolean).join('/');

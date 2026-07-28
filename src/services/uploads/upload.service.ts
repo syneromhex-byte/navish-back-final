@@ -110,8 +110,8 @@ export class UploadService {
     // Create Model record
     const modelName = dto.modelName ?? session.fileName.replace(/\.[^.]+$/, '');
 
-    // Move from temp to models prefix
-    const modelKey = buildS3Key(S3Prefix.MODELS, userId, `${session.id}.${getExtension(session.fileName)}`);
+    // Store key under temp prefix
+    const modelKey = buildS3Key(S3Prefix.TEMP, userId, `${session.id}.${getExtension(session.fileName)}`);
 
     const model = await prisma.model.create({
       data: {
