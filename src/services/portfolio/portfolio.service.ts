@@ -98,23 +98,22 @@ export class PortfolioService {
 
     const where: any = {
       ...(isAdminOrArchitect ? {} : { isPublic: true }),
-      ...(category && category.toLowerCase() !== 'all'
-        ? {
-            category: {
-              equals: category,
-              mode: 'insensitive',
-            },
-          }
-        : {}),
-      ...(search
-        ? {
-            OR: [
-              { title: { contains: search, mode: 'insensitive' } },
-              { description: { contains: search, mode: 'insensitive' } },
-            ],
-          }
-        : {}),
     };
+
+    // ONLY filter by category if it's provided AND NOT 'all'
+    if (category && category.trim() !== '' && category.trim().toLowerCase() !== 'all') {
+      where.category = {
+        equals: category.trim(),
+        mode: 'insensitive',
+      };
+    }
+
+    if (search && search.trim() !== '') {
+      where.OR = [
+        { title: { contains: search.trim(), mode: 'insensitive' } },
+        { description: { contains: search.trim(), mode: 'insensitive' } },
+      ];
+    }
 
     return await prisma.portfolioItem.findMany({
       where,
