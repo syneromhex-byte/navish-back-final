@@ -52,10 +52,33 @@ export class PortfolioService {
     return item;
   }
 
-  async listPortfolioItems(userRole?: string): Promise<PortfolioItem[]> {
+  async listPortfolioItems(query?: { category?: string; search?: string }, userRole?: string): Promise<PortfolioItem[]> {
     const isAdminOrArchitect = userRole === 'ADMIN' || userRole === 'ARCHITECT';
+    const category = query?.category;
+    const search = query?.search;
+
+    const where: any = {
+      ...(isAdminOrArchitect ? {} : { isPublic: true }),
+      ...(category && category.toLowerCase() !== 'all'
+        ? {
+            category: {
+              equals: category,
+              mode: 'insensitive',
+            },
+          }
+        : {}),
+      ...(search
+        ? {
+            OR: [
+              { title: { contains: search, mode: 'insensitive' } },
+              { description: { contains: search, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+    };
+
     return await prisma.portfolioItem.findMany({
-      where: isAdminOrArchitect ? {} : { isPublic: true },
+      where,
       orderBy: { createdAt: 'desc' },
     });
   }

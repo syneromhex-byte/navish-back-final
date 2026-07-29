@@ -17,8 +17,14 @@ export class PortfolioController {
 
   listPortfolioItems = asyncHandler(async (req: Request, res: Response) => {
     const userRole = req.user?.role;
-    const items = await portfolioService.listPortfolioItems(userRole);
-    return ApiResponse.success(res, items);
+    const items = await portfolioService.listPortfolioItems(req.query as any, userRole);
+    return res.status(200).json({
+      success: true,
+      message: 'Portfolio items retrieved successfully',
+      data: items,
+      items,
+      portfolio: items,
+    });
   });
 
   updatePortfolioItem = asyncHandler(async (req: Request, res: Response) => {
