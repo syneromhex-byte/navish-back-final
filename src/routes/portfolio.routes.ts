@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { portfolioController } from '../controllers/portfolio/portfolio.controller';
 import { validate } from '../middleware/validation.middleware';
-import { authenticate, optionalAuthenticate } from '../middleware/auth.middleware';
+import { authenticate } from '../middleware/auth.middleware';
 import { requireRole } from '../middleware/role.middleware';
 import { createPortfolioSchema, updatePortfolioSchema } from '../validators/portfolio.validator';
 import { uploadPortfolioMedia } from '../middleware/upload.middleware';
@@ -9,9 +9,9 @@ import { UserRole } from '@prisma/client';
 
 const router = Router();
 
-// Public / Client routes
-router.get('/', optionalAuthenticate, portfolioController.listPortfolioItems);
-router.get('/:id', optionalAuthenticate, portfolioController.getPortfolioItem);
+// Public / Client routes (NO AUTH MIDDLEWARE HERE)
+router.get('/', portfolioController.listPortfolioItems);
+router.get('/:id', portfolioController.getPortfolioItem);
 
 // Protected routes (Admin / Architect)
 router.use(authenticate);
