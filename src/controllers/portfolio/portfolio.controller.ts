@@ -16,7 +16,8 @@ export class PortfolioController {
   });
 
   listPortfolioItems = asyncHandler(async (req: Request, res: Response) => {
-    const items = await portfolioService.listPortfolioItems();
+    const userRole = req.user?.role;
+    const items = await portfolioService.listPortfolioItems(userRole);
     return ApiResponse.success(res, items);
   });
 

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { projectController } from '../controllers/projects/project.controller';
-import { authenticate } from '../middleware/auth.middleware';
+import { authenticate, optionalAuthenticate } from '../middleware/auth.middleware';
 import { requireRole } from '../middleware/role.middleware';
 import { validate } from '../middleware/validation.middleware';
 import {
@@ -18,10 +18,11 @@ const router = Router();
 // Public share link viewer route
 router.get('/share/:token', projectController.getByShareToken);
 
+// Public / list projects
+router.get('/', optionalAuthenticate, validate(listProjectsQuerySchema, 'query'), projectController.listProjects);
+
 router.use(authenticate);
 
-// Public / list projects
-router.get('/', validate(listProjectsQuerySchema, 'query'), projectController.listProjects);
 router.post('/', requireRole(UserRole.ADMIN, UserRole.ARCHITECT), validate(createProjectSchema), projectController.createProject);
 
 router.get('/:id', projectController.getProject);

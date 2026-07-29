@@ -176,9 +176,15 @@ export class ProjectRepository {
       clientFilter.push({ isPublic: true });
     }
 
+    const isAdminOrArchitect = userRole === 'ADMIN' || userRole === 'ARCHITECT';
+
     const where: Prisma.ProjectWhereInput = {
       deletedAt: null,
-      ...(userRole === 'CLIENT' ? { OR: clientFilter } : {}),
+      ...(isAdminOrArchitect
+        ? {}
+        : userRole === 'CLIENT'
+        ? { OR: clientFilter }
+        : { isPublic: true }),
       ...(status ? { status: status as any } : {}),
       ...(clientId ? { clientId } : {}),
       ...(search
