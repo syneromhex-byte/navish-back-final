@@ -4,11 +4,32 @@ import { uploadToS3, buildS3Key } from '../../config/aws';
 import { S3Prefix } from '../../types';
 import sharp from 'sharp';
 import { v4 as uuidv4 } from 'uuid';
+import path from 'path';
 import type { CreateProjectDto, UpdateProjectDto, ListProjectsQuery } from '../../validators/project.validator';
 import { UserRole } from '@prisma/client';
 import { socketService } from '../../sockets';
 
 export class ProjectService {
+  async uploadProjectFile(file: Express.Multer.File, ownerId: string, meta: any = {}) {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const filename = `${uuidv4()}${ext}`;
+    // Save to storage path /uploads/projects/ (S3Prefix.PROJECTS = 'projects')
+    const key = buildS3Key(S3Prefix.PROJECTS, ownerId, filename);
+    const fileUrl = await uploadToS3(key, file.buffer, file.mimetype);
+
+    const name = meta.name || meta.title || file.originalname.replace(/\.[^.]+$/, '');
+    const project = await projectRepository.create({
+      name,
+      description: meta.description || null,
+      isPublic: meta.isPublic !== undefined ? Boolean(meta.isPublic) : false, // Client work is private (isPublic = false)
+      coverImageUrl: fileUrl,
+      clientId: meta.clientId || null,
+      tags: meta.tags || [],
+    }, ownerId);
+
+    return project;
+  }
+
   async createProject(dto: CreateProjectDto, ownerId: string) {
     return projectRepository.create(dto, ownerId);
   }

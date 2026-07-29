@@ -35,7 +35,13 @@ export class UploadService {
     const mimeType = dto.mimeType || getMimeTypeFromExtension(ext);
 
     const sessionId = uuidv4();
-    const s3Key = buildS3Key(S3Prefix.TEMP, userId, `${sessionId}.${ext}`);
+    const prefix = dto.context === 'portfolio'
+      ? S3Prefix.PORTFOLIO
+      : dto.context === 'project'
+      ? S3Prefix.PROJECTS
+      : S3Prefix.TEMP;
+
+    const s3Key = buildS3Key(prefix, userId, `${sessionId}.${ext}`);
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h
 
     const isMultipart = dto.fileSize > multipartThresholdBytes;
@@ -73,6 +79,12 @@ export class UploadService {
         fileSize: BigInt(dto.fileSize),
         status: UploadStatus.UPLOADING,
         chunkCount: partCount,
+        metadata: {
+          context: dto.context || null,
+          category: dto.category || null,
+          projectId: dto.projectId || null,
+          roomId: dto.roomId || null,
+        },
         expiresAt,
       },
     });
@@ -107,15 +119,54 @@ export class UploadService {
       publicUrl = getS3Url(session.s3Key);
     }
 
-    // Determine format from extension
+    const sessionMeta = (session.metadata as any) || {};
+    const context = dto.context || sessionMeta.context;
+
+    // Handle Portfolio Uploads specifically -> Save into portfolio_items with isPublic: true
+    if (context === 'portfolio') {
+      const ext = getExtension(session.fileName).toUpperCase();
+      const title = dto.title || dto.modelName || session.fileName.replace(/\.[^.]+$/, '');
+      const category = dto.category || sessionMeta.category || 'Residential';
+
+      const portfolioItem = await prisma.portfolioItem.create({
+        data: {
+          title,
+          category,
+          description: dto.description || null,
+          modelUrl: publicUrl,
+          sizeBytes: session.fileSize,
+          format: ext,
+          isPublic: dto.isPublic !== undefined ? Boolean(dto.isPublic) : true,
+          createdById: userId,
+        },
+      });
+
+      await prisma.uploadSession.update({
+        where: { id: session.id },
+        data: { status: UploadStatus.COMPLETED, completedAt: new Date() },
+      });
+
+      try {
+        const io = socketService.getIO();
+        io.emit('portfolio:created', portfolioItem);
+      } catch {
+        // Suppress if socket service isn't active
+      }
+
+      return {
+        ...portfolioItem,
+        modelUrl: publicUrl,
+        publicUrl,
+      };
+    }
+
+    // Determine format from extension for Project / Model uploads
     const ext = getExtension(session.fileName).toUpperCase();
     const format = ext === '3DS' ? ModelFormat.THREE_DS : (ModelFormat[ext as keyof typeof ModelFormat] ?? ModelFormat.GLB);
 
-    // Create Model record
+    // Create Model record for project work (default private)
     const modelName = dto.modelName ?? session.fileName.replace(/\.[^.]+$/, '');
-
-    // Store key under temp prefix
-    const modelKey = buildS3Key(S3Prefix.TEMP, userId, `${session.id}.${getExtension(session.fileName)}`);
+    const modelKey = session.s3Key;
 
     const model = await prisma.model.create({
       data: {

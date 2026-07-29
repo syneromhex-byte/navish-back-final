@@ -4,6 +4,13 @@ import { ApiResponse } from '../../utils/ApiResponse';
 import { asyncHandler } from '../../utils/asyncHandler';
 
 export class PortfolioController {
+  uploadPortfolioFile = asyncHandler(async (req: Request, res: Response) => {
+    if (!req.user) return res.sendStatus(401);
+    if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded' });
+    const item = await portfolioService.uploadPortfolioFile(req.file, req.user.id, req.body);
+    return ApiResponse.created(res, item, 'Portfolio file uploaded and item created successfully');
+  });
+
   createPortfolioItem = asyncHandler(async (req: Request, res: Response) => {
     if (!req.user) return res.sendStatus(401);
     const item = await portfolioService.createPortfolioItem(req.body, req.user.id);

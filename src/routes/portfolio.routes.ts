@@ -4,6 +4,7 @@ import { validate } from '../middleware/validation.middleware';
 import { authenticate, optionalAuthenticate } from '../middleware/auth.middleware';
 import { requireRole } from '../middleware/role.middleware';
 import { createPortfolioSchema, updatePortfolioSchema } from '../validators/portfolio.validator';
+import { uploadPortfolioMedia } from '../middleware/upload.middleware';
 import { UserRole } from '@prisma/client';
 
 const router = Router();
@@ -15,6 +16,12 @@ router.get('/:id', optionalAuthenticate, portfolioController.getPortfolioItem);
 // Protected routes (Admin / Architect)
 router.use(authenticate);
 router.use(requireRole(UserRole.ADMIN, UserRole.ARCHITECT));
+
+router.post(
+  '/upload',
+  uploadPortfolioMedia,
+  portfolioController.uploadPortfolioFile
+);
 
 router.post(
   '/',

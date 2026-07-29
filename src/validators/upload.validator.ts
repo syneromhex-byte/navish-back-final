@@ -7,6 +7,8 @@ export const initiateUploadSchema = z.object({
   parts: z.number().int().min(1).max(10000).optional(),
   projectId: z.string().uuid().optional(),
   roomId: z.string().uuid().optional(),
+  context: z.enum(['portfolio', 'project']).optional(),
+  category: z.string().optional(),
 });
 
 export const completeUploadSchema = z.object({
@@ -22,6 +24,11 @@ export const completeUploadSchema = z.object({
   modelName: z.string().max(200).optional(),
   projectId: z.string().uuid().optional(),
   roomId: z.string().uuid().optional(),
+  context: z.enum(['portfolio', 'project']).optional(),
+  category: z.string().optional(),
+  title: z.string().optional(),
+  description: z.string().optional(),
+  isPublic: z.boolean().optional(),
 });
 
 export const abortUploadSchema = z.object({

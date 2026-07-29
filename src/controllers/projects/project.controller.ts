@@ -5,6 +5,13 @@ import { ApiResponse } from '../../utils/ApiResponse';
 import { asyncHandler } from '../../utils/asyncHandler';
 
 export class ProjectController {
+  uploadProjectFile = asyncHandler(async (req: Request, res: Response) => {
+    if (!req.user) return res.sendStatus(401);
+    if (!req.file) return res.status(400).json({ success: false, message: 'No project file provided' });
+    const project = await projectService.uploadProjectFile(req.file, req.user.id, req.body);
+    return ApiResponse.created(res, project, 'Project file uploaded successfully');
+  });
+
   createProject = asyncHandler(async (req: Request, res: Response) => {
     if (!req.user) return res.sendStatus(401);
     const project = await projectService.createProject(req.body, req.user.id);

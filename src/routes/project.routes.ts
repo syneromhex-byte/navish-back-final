@@ -23,6 +23,8 @@ router.get('/', optionalAuthenticate, validate(listProjectsQuerySchema, 'query')
 
 router.use(authenticate);
 
+router.post('/upload', requireRole(UserRole.ADMIN, UserRole.ARCHITECT), uploadImage, projectController.uploadProjectFile);
+
 router.post('/', requireRole(UserRole.ADMIN, UserRole.ARCHITECT), validate(createProjectSchema), projectController.createProject);
 
 router.get('/:id', projectController.getProject);

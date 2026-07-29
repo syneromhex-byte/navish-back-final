@@ -60,6 +60,10 @@ export interface InitiateUploadDto {
   fileSize: number;
   mimeType: string;
   parts?: number;  // For multipart upload
+  context?: 'portfolio' | 'project';
+  category?: string;
+  projectId?: string;
+  roomId?: string;
 }
 
 export interface PresignedPart {
@@ -86,6 +90,11 @@ export interface CompleteUploadDto {
   modelName?: string;
   projectId?: string;
   roomId?: string;
+  context?: 'portfolio' | 'project';
+  category?: string;
+  title?: string;
+  description?: string;
+  isPublic?: boolean;
 }
 
 // ── Share Link Types ──────────────────────────────────────────────────────────
@@ -118,4 +127,6 @@ export const S3Prefix = {
   SCREENSHOTS: 'screenshots',
   AVATARS: 'avatars',
   TEMP: 'temp',
+  PORTFOLIO: 'portfolio',
+  PROJECTS: 'projects',
 } as const;

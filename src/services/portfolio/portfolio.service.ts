@@ -1,10 +1,49 @@
 import { PrismaClient, PortfolioItem } from '@prisma/client';
 import { ApiError } from '../../utils/ApiError';
 import { socketService } from '../../sockets';
+import { uploadToS3, buildS3Key } from '../../config/aws';
+import { S3Prefix } from '../../types';
+import { v4 as uuidv4 } from 'uuid';
+import path from 'path';
 
 const prisma = new PrismaClient();
 
 export class PortfolioService {
+  async uploadPortfolioFile(file: Express.Multer.File, userId: string, meta: any = {}): Promise<PortfolioItem> {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const filename = `${uuidv4()}${ext}`;
+    // Save to storage path /uploads/portfolio/ (S3Prefix.PORTFOLIO = 'portfolio')
+    const key = buildS3Key(S3Prefix.PORTFOLIO, filename);
+    const fileUrl = await uploadToS3(key, file.buffer, file.mimetype);
+
+    const isImage = file.mimetype.startsWith('image/') && !file.originalname.endsWith('.hdr');
+    const title = meta.title || meta.name || file.originalname.replace(/\.[^.]+$/, '');
+    const category = meta.category || 'Residential';
+
+    const item = await prisma.portfolioItem.create({
+      data: {
+        title,
+        category,
+        description: meta.description || null,
+        modelUrl: isImage ? (meta.modelUrl || null) : fileUrl,
+        thumbnailUrl: isImage ? fileUrl : (meta.thumbnailUrl || null),
+        sizeBytes: BigInt(file.size),
+        format: ext.replace('.', '').toUpperCase(),
+        isPublic: meta.isPublic !== undefined ? Boolean(meta.isPublic) : true,
+        createdById: userId,
+      },
+    });
+
+    try {
+      const io = socketService.getIO();
+      io.emit('portfolio:created', item);
+    } catch {
+      // Suppress if socket service isn't active
+    }
+
+    return item;
+  }
+
   async createPortfolioItem(data: any, userId: string): Promise<PortfolioItem> {
     const title = data.title || data.name || 'Untitled Project';
     const modelUrl = data.modelUrl || data.fileUrl || data.model_url || null;
