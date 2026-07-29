@@ -25,15 +25,17 @@ export class UserRepository {
    * Create a user whose email was already verified by OTP before registration.
    * Sets emailVerified=true, emailVerifiedAt=now, status=ACTIVE immediately.
    */
-  async createVerified(data: CreateUserDto) {
+  async createVerified(data: any) {
     const now = new Date();
+    const firstName = data.firstName || 'User';
+    const lastName = data.lastName || '';
     return prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
         data: {
           email: data.email,
           password: data.password,
-          firstName: data.firstName,
-          lastName: data.lastName,
+          firstName,
+          lastName,
           role: (data.role as UserRole) ?? UserRole.CLIENT,
           phone: data.phone,
           jobTitle: data.jobTitle,
@@ -50,7 +52,7 @@ export class UserRepository {
           .create({
             data: {
               userId: user.id,
-              companyName: data.company || `${data.firstName || ''} ${data.lastName || ''}`.trim() || data.email,
+              companyName: data.company || `${firstName} ${lastName}`.trim() || data.email,
               notes: 'Registered Client',
             },
           })

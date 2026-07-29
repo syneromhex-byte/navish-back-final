@@ -17,9 +17,14 @@ export const registerSchema = z.object({
     .regex(/[a-z]/, 'Must contain lowercase letter')
     .regex(/[0-9]/, 'Must contain number')
     .regex(/[^A-Za-z0-9]/, 'Must contain special character'),
-  firstName: z.string().min(1).max(50).trim(),
-  lastName: z.string().min(1).max(50).trim(),
-  role: z.enum(['ARCHITECT', 'CLIENT']).optional(), // VIEWER removed!
+  confirmPassword: z.string().optional(),
+  name: z.string().optional(),
+  firstName: z.string().optional().default(''),
+  lastName: z.string().optional().default(''),
+  role: z.enum(['ADMIN', 'ARCHITECT', 'CLIENT']).optional().default('CLIENT'),
+  phone: z.string().optional(),
+  company: z.string().optional(),
+  jobTitle: z.string().optional(),
 });
 
 export const forgotPasswordSchema = z.object({

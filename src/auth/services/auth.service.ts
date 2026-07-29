@@ -124,7 +124,7 @@ export class AuthService {
     };
   }
 
-  async register(dto: RegisterDto, meta?: { ip?: string }) {
+  async register(dto: any, meta?: { ip?: string }) {
     // 1. Gate: Email must have passed OTP verification in Redis
     const isEmailVerified = await verifiedEmailStore.has(dto.email);
     if (!isEmailVerified) {
@@ -137,12 +137,24 @@ export class AuthService {
     const existing = await authRepository.findByEmail(dto.email);
     if (existing) throw ApiError.conflict('Email already registered');
 
+    // Handle name vs firstName/lastName
+    let firstName = dto.firstName || '';
+    let lastName = dto.lastName || '';
+    if ((!firstName || !lastName) && dto.name) {
+      const parts = dto.name.trim().split(' ');
+      firstName = parts[0] || 'User';
+      lastName = parts.slice(1).join(' ') || '';
+    }
+    if (!firstName) firstName = 'User';
+
     // 3. Hash password before database repository call
     const hashedPassword = await hashPassword(dto.password);
 
     // 4. Create user — pre-verified, active immediately
     const user = await userRepository.createVerified({
       ...dto,
+      firstName,
+      lastName,
       password: hashedPassword,
       role: (dto.role as UserRole) ?? UserRole.CLIENT,
     });
