@@ -24,12 +24,13 @@ export const helmetConfig = helmet({
 // ── CORS ──────────────────────────────────────────────────────────────────────
 export const corsConfig = cors({
   origin: (origin, callback) => {
-    // Allow requests with no origin (mobile apps, curl, Postman)
+    // Allow all origins (mobile apps, curl, Postman, custom domains, local IPs)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin) || !isProduction) {
+    if (allowedOrigins.includes('*') || allowedOrigins.includes(origin) || !isProduction) {
       return callback(null, true);
     }
-    return callback(new ApiError(403, `CORS: Origin ${origin} not allowed`));
+    // Allow public & multi-device cross-origin traffic
+    return callback(null, true);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],

@@ -27,6 +27,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // ── CORS & Security ──────────────────────────────────────────────────────────
 app.use(corsConfig);
+app.options('*', corsConfig);
 app.use('/storage', express.static(path.join(__dirname, '../storage')));
 
 // Apply global HTTP rate limiting
