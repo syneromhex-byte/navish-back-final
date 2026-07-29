@@ -1,5 +1,6 @@
 import { prisma } from '../../config/database';
-import { uploadToS3, buildS3Key, getPresignedGetUrl } from '../../config/aws';
+import { uploadToS3, buildS3Key, getPresignedGetUrl, deleteFromS3 } from '../../config/aws';
+import { logger } from '../../config/logger';
 import { sanitizeFilename, getExtension } from '../../utils/fileHelper';
 import { computeChecksum } from '../../utils/crypto';
 import { ApiError } from '../../utils/ApiError';
@@ -92,6 +93,13 @@ export class TextureService {
     const texture = await prisma.texture.findUnique({ where: { id } });
     if (!texture) throw ApiError.notFound('Texture not found');
     await prisma.texture.update({ where: { id }, data: { deletedAt: new Date() } });
+    if (texture.storagePath) {
+      try {
+        await deleteFromS3(texture.storagePath);
+      } catch (err) {
+        logger.error(`Failed to delete S3 object for texture ${id}`, { error: err });
+      }
+    }
   }
 
   async getSignedUrl(id: string): Promise<string> {
