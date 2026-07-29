@@ -1,5 +1,6 @@
 import { PrismaClient, PortfolioItem } from '@prisma/client';
 import { ApiError } from '../../utils/ApiError';
+import { socketService } from '../../sockets';
 
 const prisma = new PrismaClient();
 
@@ -47,6 +48,13 @@ export class PortfolioService {
     await prisma.portfolioItem.delete({
       where: { id },
     });
+
+    try {
+      const io = socketService.getIO();
+      io.emit('portfolio:deleted', { id });
+    } catch {
+      // Suppress if socket service isn't active
+    }
   }
 }
 

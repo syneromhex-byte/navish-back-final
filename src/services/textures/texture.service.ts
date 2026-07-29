@@ -1,6 +1,7 @@
 import { prisma } from '../../config/database';
 import { uploadToS3, buildS3Key, getPresignedGetUrl, deleteFromS3 } from '../../config/aws';
 import { logger } from '../../config/logger';
+import { socketService } from '../../sockets';
 import { sanitizeFilename, getExtension } from '../../utils/fileHelper';
 import { computeChecksum } from '../../utils/crypto';
 import { ApiError } from '../../utils/ApiError';
@@ -99,6 +100,13 @@ export class TextureService {
       } catch (err) {
         logger.error(`Failed to delete S3 object for texture ${id}`, { error: err });
       }
+    }
+
+    try {
+      const io = socketService.getIO();
+      io.emit('texture:deleted', { id });
+    } catch {
+      // Suppress if socket service isn't active
     }
   }
 

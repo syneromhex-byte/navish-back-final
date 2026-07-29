@@ -3,6 +3,7 @@ import { ApiError } from '../../utils/ApiError';
 import { deleteFromS3, getPresignedGetUrl } from '../../config/aws';
 import { UserRole } from '@prisma/client';
 import { logger } from '../../config/logger';
+import { socketService } from '../../sockets';
 
 export class ModelService {
   async getModelUrl(modelId: string, fileName: string): Promise<string> {
@@ -100,6 +101,13 @@ export class ModelService {
       } catch (err) {
         logger.error(`Failed to delete S3 object for model ${id}`, { error: err });
       }
+    }
+
+    try {
+      const io = socketService.getIO();
+      io.emit('model:deleted', { id });
+    } catch {
+      // Suppress if socket service isn't active
     }
   }
 

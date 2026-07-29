@@ -6,6 +6,7 @@ import sharp from 'sharp';
 import { v4 as uuidv4 } from 'uuid';
 import type { CreateProjectDto, UpdateProjectDto, ListProjectsQuery } from '../../validators/project.validator';
 import { UserRole } from '@prisma/client';
+import { socketService } from '../../sockets';
 
 export class ProjectService {
   async createProject(dto: CreateProjectDto, ownerId: string) {
@@ -44,6 +45,13 @@ export class ProjectService {
     }
 
     await projectRepository.softDelete(id);
+
+    try {
+      const io = socketService.getIO();
+      io.emit('project:deleted', { id });
+    } catch {
+      // Suppress if socket service isn't active
+    }
   }
 
   async uploadThumbnail(projectId: string, file: Express.Multer.File): Promise<string> {
