@@ -6,7 +6,7 @@ import { logger } from '../../config/logger';
 
 export class ModelService {
   async getModelUrl(modelId: string, fileName: string): Promise<string> {
-    return `temp/${modelId}/${fileName}`;
+    return `https://navish-arc-assets-2026.s3.us-east-1.amazonaws.com/temp/${modelId}/${fileName}`;
   }
 
   async getModelById(id: string) {

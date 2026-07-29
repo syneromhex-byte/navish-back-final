@@ -255,6 +255,6 @@ export const buildS3Key = (...parts: string[]): string =>
   parts.join('/').replace(/\/+/g, '/');
 
 export const getModelUrl = async (modelId: string, fileName: string): Promise<string> => {
-  return `temp/${modelId}/${fileName}`;
+  return `https://navish-arc-assets-2026.s3.us-east-1.amazonaws.com/temp/${modelId}/${fileName}`;
 };
 
