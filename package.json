@@ -4,7 +4,8 @@
   "description": "NAVISH ARC – Enterprise Architectural Visualization Platform Backend",
   "main": "dist/server.js",
   "scripts": {
-    "build": "tsc",
+    "build": "prisma generate && tsc",
+    "postinstall": "prisma generate",
     "start": "node dist/server.js",
     "dev": "tsx watch src/server.ts",
     "lint": "eslint src --ext .ts",
