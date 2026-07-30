@@ -1,4 +1,4 @@
-import { PrismaClient, PortfolioItem } from '@prisma/client';
+import { PrismaClient, PortfolioItem, ModelFormat, ModelStatus } from '@prisma/client';
 import { ApiError } from '../../utils/ApiError';
 import { socketService } from '../../sockets';
 import { uploadToS3, buildS3Key } from '../../config/aws';
@@ -7,6 +7,17 @@ import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 
 const prisma = new PrismaClient();
+
+function parseBoolean(val: any, defaultValue = true): boolean {
+  if (val === undefined || val === null) return defaultValue;
+  if (typeof val === 'boolean') return val;
+  if (typeof val === 'string') {
+    const lower = val.trim().toLowerCase();
+    if (lower === 'false' || lower === '0' || lower === 'off') return false;
+    if (lower === 'true' || lower === '1' || lower === 'on') return true;
+  }
+  return Boolean(val);
+}
 
 export class PortfolioService {
   async uploadPortfolioFile(file: Express.Multer.File, userId: string, meta: any = {}): Promise<PortfolioItem> {
@@ -19,20 +30,47 @@ export class PortfolioService {
     const isImage = file.mimetype.startsWith('image/') && !file.originalname.endsWith('.hdr');
     const title = meta.title || meta.name || file.originalname.replace(/\.[^.]+$/, '');
     const category = meta.category || 'Residential';
+    const isPublic = parseBoolean(meta.isPublic, true);
+
+    const modelUrl = isImage ? (meta.modelUrl || null) : fileUrl;
+    const thumbnailUrl = isImage ? fileUrl : (meta.thumbnailUrl || null);
+    const formatStr = ext.replace('.', '').toUpperCase();
 
     const item = await prisma.portfolioItem.create({
       data: {
         title,
         category,
         description: meta.description || null,
-        modelUrl: isImage ? (meta.modelUrl || null) : fileUrl,
-        thumbnailUrl: isImage ? fileUrl : (meta.thumbnailUrl || null),
+        modelUrl,
+        thumbnailUrl,
         sizeBytes: BigInt(file.size),
-        format: ext.replace('.', '').toUpperCase(),
-        isPublic: meta.isPublic !== undefined ? Boolean(meta.isPublic) : true,
+        format: formatStr,
+        isPublic,
         createdById: userId,
       },
     });
+
+    // Also sync to Model table so 3D model list and viewer find it
+    if (!isImage || modelUrl) {
+      const formatEnum = formatStr === '3DS' ? ModelFormat.THREE_DS : (ModelFormat[formatStr as keyof typeof ModelFormat] ?? ModelFormat.GLB);
+      await prisma.model.create({
+        data: {
+          id: item.id,
+          name: title,
+          description: meta.description || null,
+          format: formatEnum,
+          status: ModelStatus.READY,
+          fileSize: BigInt(file.size),
+          originalName: file.originalname,
+          storagePath: key,
+          publicUrl: modelUrl || fileUrl,
+          thumbnailUrl,
+          isPortfolio: true,
+          isPublic,
+          uploadedById: userId,
+        },
+      }).catch(() => {});
+    }
 
     try {
       const io = socketService.getIO();
@@ -48,8 +86,9 @@ export class PortfolioService {
     const title = data.title || data.name || 'Untitled Project';
     const modelUrl = data.modelUrl || data.fileUrl || data.model_url || null;
     const thumbnailUrl = data.thumbnailUrl || data.coverImageUrl || data.thumbnail_url || null;
-    const isPublic = data.isPublic !== undefined ? Boolean(data.isPublic) : true;
+    const isPublic = parseBoolean(data.isPublic, true);
     const category = data.category || 'Residential';
+    const formatStr = data.format ? data.format.replace('.', '').toUpperCase() : (modelUrl ? path.extname(modelUrl).replace('.', '').toUpperCase() : null);
 
     // If projectId is supplied, update that project's isPublic flag to true as well
     if (data.projectId) {
@@ -67,11 +106,32 @@ export class PortfolioService {
         modelUrl,
         thumbnailUrl,
         sizeBytes: data.sizeBytes ? BigInt(data.sizeBytes) : null,
-        format: data.format || null,
+        format: formatStr,
         isPublic,
         createdById: userId,
       },
     });
+
+    if (modelUrl) {
+      const formatEnum = formatStr === '3DS' ? ModelFormat.THREE_DS : (ModelFormat[(formatStr || 'GLB') as keyof typeof ModelFormat] ?? ModelFormat.GLB);
+      await prisma.model.create({
+        data: {
+          id: item.id,
+          name: title,
+          description: data.description || null,
+          format: formatEnum,
+          status: ModelStatus.READY,
+          fileSize: data.sizeBytes ? BigInt(data.sizeBytes) : BigInt(0),
+          originalName: `${title}.${(formatStr || 'glb').toLowerCase()}`,
+          storagePath: modelUrl,
+          publicUrl: modelUrl,
+          thumbnailUrl,
+          isPortfolio: true,
+          isPublic,
+          uploadedById: userId,
+        },
+      }).catch(() => {});
+    }
 
     try {
       const io = socketService.getIO();
@@ -126,10 +186,27 @@ export class PortfolioService {
     if (item.createdById !== userId && role !== 'ADMIN') {
       throw ApiError.forbidden('You do not have permission to update this item');
     }
-    return await prisma.portfolioItem.update({
+
+    const updatedData = { ...data };
+    if (updatedData.isPublic !== undefined) {
+      updatedData.isPublic = parseBoolean(updatedData.isPublic, true);
+    }
+
+    const updated = await prisma.portfolioItem.update({
       where: { id },
-      data,
+      data: updatedData,
     });
+
+    await prisma.model.update({
+      where: { id },
+      data: {
+        ...(data.title || data.name ? { name: data.title || data.name } : {}),
+        ...(data.description !== undefined ? { description: data.description } : {}),
+        ...(data.isPublic !== undefined ? { isPublic: parseBoolean(data.isPublic, true) } : {}),
+      },
+    }).catch(() => {});
+
+    return updated;
   }
 
   async deletePortfolioItem(id: string, userId: string, role: string): Promise<void> {
@@ -140,6 +217,10 @@ export class PortfolioService {
     await prisma.portfolioItem.delete({
       where: { id },
     });
+
+    await prisma.model.delete({
+      where: { id },
+    }).catch(() => {});
 
     try {
       const io = socketService.getIO();

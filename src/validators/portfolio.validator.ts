@@ -12,7 +12,13 @@ export const createPortfolioSchema = z.object({
   projectId: z.string().optional().nullable(),
   sizeBytes: z.any().optional().nullable(),
   format: z.string().optional().nullable(),
-  isPublic: z.boolean().optional().default(true),
+  isPublic: z.preprocess((val) => {
+    if (typeof val === 'string') {
+      if (val.trim().toLowerCase() === 'false' || val === '0') return false;
+      if (val.trim().toLowerCase() === 'true' || val === '1') return true;
+    }
+    return val;
+  }, z.boolean().optional().default(true)),
 });
 
 export const updatePortfolioSchema = createPortfolioSchema.partial();

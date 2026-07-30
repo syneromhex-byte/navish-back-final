@@ -126,7 +126,8 @@ export class UploadService {
     const sessionMeta = (session.metadata as any) || {};
     const context = dto.context || sessionMeta.context;
     const isPortfolio = dto.isPortfolio !== undefined ? dto.isPortfolio : (sessionMeta.isPortfolio ?? (context === 'portfolio'));
-    const isPublic = dto.isPublic !== undefined ? dto.isPublic : (sessionMeta.isPublic ?? (context === 'portfolio'));
+    const rawIsPublic = dto.isPublic !== undefined ? dto.isPublic : (sessionMeta.isPublic ?? true);
+    const isPublic = typeof rawIsPublic === 'string' ? (rawIsPublic.toLowerCase() !== 'false' && rawIsPublic !== '0') : Boolean(rawIsPublic);
     const clientId = isPortfolio ? null : (dto.clientId || sessionMeta.clientId || null);
 
     // Handle Portfolio Uploads specifically -> Save into portfolio_items with isPublic: true
@@ -143,10 +144,31 @@ export class UploadService {
           modelUrl: publicUrl,
           sizeBytes: session.fileSize,
           format: ext,
-          isPublic: isPublic !== undefined ? Boolean(isPublic) : true,
+          isPublic,
           createdById: userId,
         },
       });
+
+      // Also create Model record for full cross-compatibility across all model views
+      const formatEnum = ext === '3DS' ? ModelFormat.THREE_DS : (ModelFormat[ext as keyof typeof ModelFormat] ?? ModelFormat.GLB);
+      await prisma.model.create({
+        data: {
+          id: portfolioItem.id,
+          name: title,
+          description: dto.description || null,
+          format: formatEnum,
+          status: ModelStatus.READY,
+          fileSize: session.fileSize,
+          originalName: session.fileName,
+          storagePath: session.s3Key,
+          publicUrl: publicUrl,
+          mimeType: session.mimeType,
+          uploadedById: userId,
+          clientId: null,
+          isPortfolio: true,
+          isPublic,
+        },
+      }).catch(() => {});
 
       await prisma.uploadSession.update({
         where: { id: session.id },
