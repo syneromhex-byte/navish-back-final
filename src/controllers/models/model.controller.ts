@@ -16,7 +16,18 @@ export class ModelController {
   });
 
   listModels = asyncHandler(async (req: Request, res: Response) => {
-    const result = await modelService.listModels(req.query as any);
+    const result = await modelService.listModels(req.query as any, req.user?.id, req.user?.role);
+    return ApiResponse.paginated(res, result.data, result.meta);
+  });
+
+  getClientModels = asyncHandler(async (req: Request, res: Response) => {
+    if (!req.user) return res.sendStatus(401);
+    const clientId = req.user.id;
+    const result = await modelService.listModels(
+      { ...(req.query as any), clientId, isPortfolio: false },
+      req.user.id,
+      req.user.role
+    );
     return ApiResponse.paginated(res, result.data, result.meta);
   });
 

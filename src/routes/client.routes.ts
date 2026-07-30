@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { clientController } from '../controllers/clients/client.controller';
+import { modelController } from '../controllers/models/model.controller';
 import { authenticate } from '../middleware/auth.middleware';
 import { requireRole } from '../middleware/role.middleware';
 import { validate } from '../middleware/validation.middleware';
@@ -10,6 +11,11 @@ import { UserRole } from '@prisma/client';
 const router = Router();
 
 router.use(authenticate);
+
+// Client dashboard routes (accessible by CLIENT role)
+router.get('/models', modelController.getClientModels);
+
+// Admin & Architect client management routes
 router.use(requireRole(UserRole.ADMIN, UserRole.ARCHITECT));
 
 router.post('/', validate(createClientSchema), clientController.createClient);

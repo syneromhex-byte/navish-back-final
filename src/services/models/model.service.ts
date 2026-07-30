@@ -44,16 +44,31 @@ export class ModelService {
     };
   }
 
-  async listModels(query: {
-    page: number;
-    limit: number;
-    search?: string;
-    status?: any;
-    format?: string;
-    sortBy?: string;
-    sortOrder?: 'asc' | 'desc';
-  }) {
-    const result = await modelRepository.findMany(query);
+  async listModels(
+    query: {
+      page: number;
+      limit: number;
+      search?: string;
+      status?: any;
+      format?: string;
+      clientId?: string;
+      isPortfolio?: boolean;
+      isPublic?: boolean;
+      sortBy?: string;
+      sortOrder?: 'asc' | 'desc';
+    },
+    userId?: string,
+    userRole?: string
+  ) {
+    const finalQuery = { ...query };
+    if (userRole === 'CLIENT') {
+      finalQuery.isPortfolio = false; // Exclude public showcase portfolio items from client dashboard!
+      if (userId && !finalQuery.clientId) {
+        finalQuery.clientId = userId;
+      }
+    }
+
+    const result = await modelRepository.findMany(finalQuery);
     const enrichedData = await Promise.all(
       result.data.map(async (model) => {
         let presignedUrl: string | null = null;
@@ -71,6 +86,14 @@ export class ModelService {
       })
     );
     return { ...result, data: enrichedData };
+  }
+
+  async getClientModels(clientId: string, query: { page: number; limit: number; search?: string }) {
+    return this.listModels({
+      ...query,
+      clientId,
+      isPortfolio: false, // Strict exclusion of showcase items
+    });
   }
 
   async updateModel(id: string, data: Partial<{ name: string; description: string; tags: string[] }>, userId: string, userRole: UserRole) {

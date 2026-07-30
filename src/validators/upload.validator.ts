@@ -9,6 +9,9 @@ export const initiateUploadSchema = z.object({
   roomId: z.string().uuid().optional(),
   context: z.enum(['portfolio', 'project']).optional(),
   category: z.string().optional(),
+  clientId: z.string().uuid().optional(),
+  isPortfolio: z.boolean().optional(),
+  isPublic: z.boolean().optional(),
 });
 
 export const completeUploadSchema = z.object({
@@ -29,6 +32,8 @@ export const completeUploadSchema = z.object({
   title: z.string().optional(),
   description: z.string().optional(),
   isPublic: z.boolean().optional(),
+  clientId: z.string().uuid().optional(),
+  isPortfolio: z.boolean().optional(),
 });
 
 export const abortUploadSchema = z.object({

@@ -48,5 +48,7 @@ router.use('/settings', settingsRoutes);
 router.use('/admin', adminRoutes);
 router.use('/contact', contactRoutes);
 router.use('/portfolio', portfolioRoutes);
+router.use('/public/portfolio', portfolioRoutes);
+router.use('/client/models', clientRoutes);
 
 export default router;

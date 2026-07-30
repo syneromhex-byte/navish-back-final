@@ -84,6 +84,9 @@ export class UploadService {
           category: dto.category || null,
           projectId: dto.projectId || null,
           roomId: dto.roomId || null,
+          clientId: dto.clientId || null,
+          isPortfolio: dto.isPortfolio !== undefined ? dto.isPortfolio : (dto.context === 'portfolio'),
+          isPublic: dto.isPublic !== undefined ? dto.isPublic : (dto.context === 'portfolio'),
         },
         expiresAt,
       },
@@ -121,9 +124,12 @@ export class UploadService {
 
     const sessionMeta = (session.metadata as any) || {};
     const context = dto.context || sessionMeta.context;
+    const isPortfolio = dto.isPortfolio !== undefined ? dto.isPortfolio : (sessionMeta.isPortfolio ?? (context === 'portfolio'));
+    const isPublic = dto.isPublic !== undefined ? dto.isPublic : (sessionMeta.isPublic ?? (context === 'portfolio'));
+    const clientId = isPortfolio ? null : (dto.clientId || sessionMeta.clientId || null);
 
     // Handle Portfolio Uploads specifically -> Save into portfolio_items with isPublic: true
-    if (context === 'portfolio') {
+    if (context === 'portfolio' || isPortfolio) {
       const ext = getExtension(session.fileName).toUpperCase();
       const title = dto.title || dto.modelName || session.fileName.replace(/\.[^.]+$/, '');
       const category = dto.category || sessionMeta.category || 'Residential';
@@ -136,7 +142,7 @@ export class UploadService {
           modelUrl: publicUrl,
           sizeBytes: session.fileSize,
           format: ext,
-          isPublic: dto.isPublic !== undefined ? Boolean(dto.isPublic) : true,
+          isPublic: isPublic !== undefined ? Boolean(isPublic) : true,
           createdById: userId,
         },
       });
@@ -157,6 +163,8 @@ export class UploadService {
         ...portfolioItem,
         modelUrl: publicUrl,
         publicUrl,
+        isPortfolio: true,
+        clientId: null,
       };
     }
 
@@ -179,6 +187,9 @@ export class UploadService {
         publicUrl,
         mimeType: session.mimeType,
         uploadedById: userId,
+        clientId,
+        isPortfolio: false,
+        isPublic: Boolean(isPublic),
       },
     });
 

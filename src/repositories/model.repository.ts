@@ -21,15 +21,21 @@ export class ModelRepository {
     search?: string;
     status?: ModelStatus;
     format?: string;
+    clientId?: string;
+    isPortfolio?: boolean;
+    isPublic?: boolean;
     sortBy?: string;
     sortOrder?: 'asc' | 'desc';
   }) {
-    const { page, limit, search, status, format, sortBy = 'createdAt', sortOrder = 'desc' } = query;
+    const { page, limit, search, status, format, clientId, isPortfolio, isPublic, sortBy = 'createdAt', sortOrder = 'desc' } = query;
 
     const where: Prisma.ModelWhereInput = {
       deletedAt: null,
       ...(status ? { status } : {}),
       ...(format ? { format: format as any } : {}),
+      ...(clientId !== undefined ? { clientId } : {}),
+      ...(isPortfolio !== undefined ? { isPortfolio } : {}),
+      ...(isPublic !== undefined ? { isPublic } : {}),
       ...(search
         ? {
             OR: [
@@ -49,12 +55,21 @@ export class ModelRepository {
         select: {
           id: true, name: true, format: true, status: true, fileSize: true,
           storagePath: true, publicUrl: true, thumbnailUrl: true, createdAt: true, updatedAt: true,
+          clientId: true, isPortfolio: true, isPublic: true, uploadedById: true,
           _count: { select: { roomAssignments: true } },
         },
       }),
     ]);
 
     return { data, meta: buildPaginationMeta(total, page, limit) };
+  }
+
+  async findClientModels(clientId: string, query: { page: number; limit: number; search?: string }) {
+    return this.findMany({
+      ...query,
+      clientId,
+      isPortfolio: false, // Must exclude portfolio showcase items!
+    });
   }
 
   async updateStatus(id: string, status: ModelStatus, error?: string) {

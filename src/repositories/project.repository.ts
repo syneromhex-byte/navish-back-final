@@ -173,7 +173,7 @@ export class ProjectRepository {
         clientFilter.push({ metadata: { path: ['clientEmail'], equals: userEmail.toLowerCase() } });
         clientFilter.push({ metadata: { path: ['clientEmail'], equals: userEmail } });
       }
-      clientFilter.push({ isPublic: true });
+      clientFilter.push({ members: { some: { userId } } });
     }
 
     const isAdminOrArchitect = userRole === 'ADMIN' || userRole === 'ARCHITECT';
@@ -183,7 +183,7 @@ export class ProjectRepository {
       ...(isAdminOrArchitect
         ? {}
         : userRole === 'CLIENT'
-        ? { OR: clientFilter }
+        ? { OR: clientFilter.length > 0 ? clientFilter : [{ clientId: 'none' }] }
         : { isPublic: true }),
       ...(status ? { status: status as any } : {}),
       ...(clientId ? { clientId } : {}),

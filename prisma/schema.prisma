@@ -382,6 +382,9 @@ model Model {
   authorEmail     String?
   tags            String[]    @default([])
   metadata        Json?       @default("{}")
+  clientId        String?     // Assigned client ID (null if public portfolio)
+  isPortfolio     Boolean     @default(false) // true if standalone showcase item
+  isPublic        Boolean     @default(false)
   uploadedById    String
   errorMessage    String?
   originalSize    BigInt?
@@ -402,6 +405,9 @@ model Model {
   @@index([status])
   @@index([format])
   @@index([uploadedById])
+  @@index([clientId])
+  @@index([isPortfolio])
+  @@index([isPublic])
   @@index([deletedAt])
   @@map("models")
 }

@@ -8,6 +8,7 @@ const router = Router();
 router.use(authenticate);
 
 router.get('/', modelController.listModels);
+router.get('/client', modelController.getClientModels);
 
 // Specific routes first
 router.get('/:id/presigned-url', modelController.getPresignedUrl);
