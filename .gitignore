@@ -38,3 +38,15 @@ coverage/
 
 # PM2
 .pm2/
+
+# Database binaries & local cluster data
+local_db/
+pg_data/
+*.rdb
+dump.rdb
+
+# Database logs and archives
+*.log
+db_logfile.log
+redis.zip
+
