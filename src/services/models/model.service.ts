@@ -6,8 +6,9 @@ import { logger } from '../../config/logger';
 import { socketService } from '../../sockets';
 
 export class ModelService {
-  async getModelUrl(modelId: string, fileName: string): Promise<string> {
-    return `https://navish-arc-assets-2026.s3.us-east-1.amazonaws.com/temp/${modelId}/${fileName}`;
+  async getModelUrl(storagePathOrId: string, fileName?: string): Promise<string> {
+    const key = fileName ? `models/${storagePathOrId}/${fileName}` : storagePathOrId;
+    return getPresignedGetUrl(key, 86400);
   }
 
   async getModelById(id: string) {
@@ -17,7 +18,7 @@ export class ModelService {
     let presignedUrl: string | null = null;
     if (model.storagePath) {
       try {
-        presignedUrl = await getPresignedGetUrl(model.storagePath);
+        presignedUrl = await getPresignedGetUrl(model.storagePath, 86400);
       } catch (err) {
         logger.error(`Failed to generate presigned GET URL for model ${id}`, { error: err });
       }
@@ -29,7 +30,7 @@ export class ModelService {
     };
   }
 
-  async getPresignedUrl(id: string, expiresIn = 3600) {
+  async getPresignedUrl(id: string, expiresIn = 86400) {
     const model = await modelRepository.findById(id);
     if (!model) throw ApiError.notFound('Model not found');
     if (!model.storagePath) throw ApiError.badRequest('Model does not have a valid storage path');

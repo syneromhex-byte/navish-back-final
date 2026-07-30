@@ -25,8 +25,9 @@ const PRESIGNED_EXPIRY = 3600; // 1 hour
 const PART_SIZE = 10 * 1024 * 1024; // 10 MB per part
 
 export class UploadService {
-  async getModelUrl(modelId: string, fileName: string): Promise<string> {
-    return `https://navish-arc-assets-2026.s3.us-east-1.amazonaws.com/temp/${modelId}/${fileName}`;
+  async getModelUrl(storagePathOrId: string, fileName?: string): Promise<string> {
+    const key = fileName ? `models/${storagePathOrId}/${fileName}` : storagePathOrId;
+    return getPresignedGetUrl(key, 86400);
   }
 
   async initiateUpload(dto: InitiateUploadDto, userId: string) {

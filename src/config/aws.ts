@@ -72,7 +72,7 @@ export const uploadToS3 = async (
 };
 
 // ── Generate presigned GET URL ────────────────────────────────────────────────
-export const getPresignedGetUrl = async (key: string, expiresIn = 3600): Promise<string> => {
+export const getPresignedGetUrl = async (key: string, expiresIn = 86400): Promise<string> => {
   if (isLocalMock) {
     return getS3Url(key);
   }
@@ -254,7 +254,8 @@ export const getS3Url = (key: string): string => {
 export const buildS3Key = (...parts: string[]): string =>
   parts.join('/').replace(/\/+/g, '/');
 
-export const getModelUrl = async (modelId: string, fileName: string): Promise<string> => {
-  return `https://navish-arc-assets-2026.s3.us-east-1.amazonaws.com/temp/${modelId}/${fileName}`;
+export const getModelUrl = async (keyOrId: string, fileName?: string): Promise<string> => {
+  const key = fileName ? buildS3Key('models', keyOrId, fileName) : keyOrId;
+  return getPresignedGetUrl(key, 86400);
 };
 
