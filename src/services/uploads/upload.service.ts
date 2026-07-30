@@ -8,6 +8,8 @@ import {
   abortMultipartUpload,
   buildS3Key,
   getS3Url,
+  getPermanentS3Url,
+  moveS3Object,
 } from '../../config/aws';
 import { prisma } from '../../config/database';
 import { getQueues, QueueNames } from '../../config/redis';
@@ -27,7 +29,7 @@ const PART_SIZE = 10 * 1024 * 1024; // 10 MB per part
 export class UploadService {
   async getModelUrl(storagePathOrId: string, fileName?: string): Promise<string> {
     const key = fileName ? `models/${storagePathOrId}/${fileName}` : storagePathOrId;
-    return getPresignedGetUrl(key, 86400);
+    return getPermanentS3Url(key);
   }
 
   async initiateUpload(dto: InitiateUploadDto, userId: string) {
@@ -113,14 +115,9 @@ export class UploadService {
     }
 
     let finalKey = session.s3Key;
-    let publicUrl: string;
-
     if (session.s3UploadId && dto.parts?.length) {
-      // Complete S3 multipart
       const parts = dto.parts.map((p) => ({ ETag: p.eTag, PartNumber: p.partNumber }));
-      publicUrl = await completeMultipartUpload(session.s3Key, session.s3UploadId, parts);
-    } else {
-      publicUrl = getS3Url(session.s3Key);
+      await completeMultipartUpload(session.s3Key, session.s3UploadId, parts);
     }
 
     const sessionMeta = (session.metadata as any) || {};
@@ -129,6 +126,15 @@ export class UploadService {
     const rawIsPublic = dto.isPublic !== undefined ? dto.isPublic : (sessionMeta.isPublic ?? true);
     const isPublic = typeof rawIsPublic === 'string' ? (rawIsPublic.toLowerCase() !== 'false' && rawIsPublic !== '0') : Boolean(rawIsPublic);
     const clientId = isPortfolio ? null : (dto.clientId || sessionMeta.clientId || null);
+
+    // If file is in temp directory, relocate to portfolio directory and get clean permanent URL
+    if ((context === 'portfolio' || isPortfolio) && finalKey.startsWith('temp/')) {
+      const permanentKey = buildS3Key(S3Prefix.PORTFOLIO, `${Date.now()}-${sanitizeFilename(session.fileName)}`);
+      await moveS3Object(finalKey, permanentKey);
+      finalKey = permanentKey;
+    }
+
+    const publicUrl = getPermanentS3Url(finalKey);
 
     // Handle Portfolio Uploads specifically -> Save into portfolio_items with isPublic: true
     if (context === 'portfolio' || isPortfolio) {
@@ -161,7 +167,7 @@ export class UploadService {
             status: ModelStatus.READY,
             fileSize: session.fileSize,
             originalName: session.fileName,
-            storagePath: session.s3Key,
+            storagePath: finalKey,
             publicUrl: publicUrl,
             mimeType: session.mimeType,
             uploadedById: userId,

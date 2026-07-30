@@ -10,6 +10,7 @@ import {
   CompleteMultipartUploadCommand,
   AbortMultipartUploadCommand,
   ListObjectsV2Command,
+  CopyObjectCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { env } from './env';
@@ -56,7 +57,7 @@ export const uploadToS3 = async (
     const dir = path.dirname(filePath);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     await fs.promises.writeFile(filePath, body);
-    return getS3Url(key);
+    return getPermanentS3Url(key);
   }
 
   await s3.send(
@@ -68,15 +69,57 @@ export const uploadToS3 = async (
       Metadata: metadata,
     }),
   );
-  return getS3Url(key);
+  return getPermanentS3Url(key);
 };
 
 // ── Generate presigned GET URL ────────────────────────────────────────────────
 export const getPresignedGetUrl = async (key: string, expiresIn = 86400): Promise<string> => {
   if (isLocalMock) {
-    return getS3Url(key);
+    return getPermanentS3Url(key);
   }
   return getSignedUrl(s3, new GetObjectCommand({ Bucket: BUCKET, Key: key }), { expiresIn });
+};
+
+// ── Build permanent public URL (no signatures) ────────────────────────────────
+export const getPermanentS3Url = (fileKey: string): string => {
+  // Strip out query parameters if a full URL with signatures was passed
+  const cleanKey = fileKey.split('?')[0].replace(/^https?:\/\/[^\/]+\//, '');
+  if (isLocalMock) {
+    return `${env.APP_URL}/storage/${cleanKey}`;
+  }
+  if (env.AWS_S3_ENDPOINT) {
+    return `${env.AWS_S3_ENDPOINT}/${BUCKET}/${cleanKey}`;
+  }
+  return `https://${BUCKET}.s3.${env.AWS_REGION}.amazonaws.com/${cleanKey}`;
+};
+
+// ── Move an object (Copy + Delete) ───────────────────────────────────────────
+export const moveS3Object = async (sourceKey: string, destKey: string): Promise<string> => {
+  const cleanSource = sourceKey.split('?')[0].replace(/^https?:\/\/[^\/]+\//, '');
+  const cleanDest = destKey.split('?')[0].replace(/^https?:\/\/[^\/]+\//, '');
+
+  if (isLocalMock) {
+    const sourcePath = path.join(__dirname, '../../storage', cleanSource);
+    const destPath = path.join(__dirname, '../../storage', cleanDest);
+    const destDir = path.dirname(destPath);
+    if (!fs.existsSync(destDir)) fs.mkdirSync(destDir, { recursive: true });
+    if (fs.existsSync(sourcePath)) {
+      await fs.promises.copyFile(sourcePath, destPath);
+      await fs.promises.unlink(sourcePath).catch(() => {});
+    }
+    return getPermanentS3Url(cleanDest);
+  }
+
+  await s3.send(
+    new CopyObjectCommand({
+      Bucket: BUCKET,
+      CopySource: `${BUCKET}/${cleanSource}`,
+      Key: cleanDest,
+    }),
+  );
+  await s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: cleanSource }));
+
+  return getPermanentS3Url(cleanDest);
 };
 
 // ── Generate presigned PUT URL (direct browser upload) ───────────────────────
@@ -195,7 +238,7 @@ export const completeMultipartUpload = async (
       }
     }
     writeStream.end();
-    return getS3Url(key);
+    return getPermanentS3Url(key);
   }
 
   await s3.send(
@@ -206,7 +249,7 @@ export const completeMultipartUpload = async (
       MultipartUpload: { Parts: parts },
     }),
   );
-  return getS3Url(key);
+  return getPermanentS3Url(key);
 };
 
 export const abortMultipartUpload = async (key: string, uploadId: string): Promise<void> => {
@@ -240,14 +283,7 @@ export const listS3Objects = async (prefix: string): Promise<string[]> => {
 
 // ── Build public URL ──────────────────────────────────────────────────────────
 export const getS3Url = (key: string): string => {
-  if (isLocalMock) {
-    return `${env.APP_URL}/storage/${key}`;
-  }
-  if (env.AWS_S3_ENDPOINT) {
-    // MinIO / custom endpoint
-    return `${env.AWS_S3_ENDPOINT}/${BUCKET}/${key}`;
-  }
-  return `https://${BUCKET}.s3.${env.AWS_REGION}.amazonaws.com/${key}`;
+  return getPermanentS3Url(key);
 };
 
 // ── Build S3 key ──────────────────────────────────────────────────────────────
@@ -256,6 +292,6 @@ export const buildS3Key = (...parts: string[]): string =>
 
 export const getModelUrl = async (keyOrId: string, fileName?: string): Promise<string> => {
   const key = fileName ? buildS3Key('models', keyOrId, fileName) : keyOrId;
-  return getPresignedGetUrl(key, 86400);
+  return getPermanentS3Url(key);
 };
 
