@@ -157,7 +157,7 @@ export class PortfolioService {
     const search = query?.search;
 
     const where: any = {
-      ...(isAdminOrArchitect ? {} : { isPublic: true }),
+      ...(isAdminOrArchitect ? {} : { NOT: { isPublic: false } }),
     };
 
     // ONLY filter by category if it's provided AND NOT 'all'
@@ -175,10 +175,51 @@ export class PortfolioService {
       ];
     }
 
-    return await prisma.portfolioItem.findMany({
+    const items = await prisma.portfolioItem.findMany({
       where,
       orderBy: { createdAt: 'desc' },
     });
+
+    // Also fetch models from Model table where isPortfolio is true
+    const portfolioModelWhere: any = {
+      isPortfolio: true,
+      deletedAt: null,
+      ...(isAdminOrArchitect ? {} : { NOT: { isPublic: false } }),
+    };
+
+    if (search && search.trim() !== '') {
+      portfolioModelWhere.OR = [
+        { name: { contains: search.trim(), mode: 'insensitive' } },
+        { description: { contains: search.trim(), mode: 'insensitive' } },
+      ];
+    }
+
+    const portfolioModels = await prisma.model.findMany({
+      where: portfolioModelWhere,
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const existingIds = new Set(items.map((i) => i.id));
+    for (const m of portfolioModels) {
+      if (!existingIds.has(m.id)) {
+        items.push({
+          id: m.id,
+          title: m.name,
+          category: category || 'Residential',
+          description: m.description || null,
+          modelUrl: m.publicUrl || m.storagePath,
+          thumbnailUrl: m.thumbnailUrl || null,
+          sizeBytes: m.fileSize,
+          format: m.format,
+          isPublic: m.isPublic,
+          createdById: m.uploadedById,
+          createdAt: m.createdAt,
+          updatedAt: m.updatedAt,
+        });
+      }
+    }
+
+    return items;
   }
 
   async updatePortfolioItem(id: string, data: any, userId: string, role: string): Promise<PortfolioItem> {

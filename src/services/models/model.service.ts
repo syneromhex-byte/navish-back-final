@@ -62,10 +62,28 @@ export class ModelService {
     userRole?: string
   ) {
     const finalQuery = { ...query };
+
+    if (typeof (finalQuery as any).isPortfolio === 'string') {
+      finalQuery.isPortfolio = (finalQuery as any).isPortfolio.toLowerCase() === 'true';
+    }
+    if (typeof (finalQuery as any).isPublic === 'string') {
+      finalQuery.isPublic = (finalQuery as any).isPublic.toLowerCase() === 'true';
+    }
+
     if (userRole === 'CLIENT') {
-      finalQuery.isPortfolio = false; // Exclude public showcase portfolio items from client dashboard!
-      if (userId && !finalQuery.clientId) {
+      // Only default isPortfolio to false when querying dashboard files, NOT when explicitly listing portfolio models
+      if (finalQuery.isPortfolio === undefined && finalQuery.clientId) {
+        finalQuery.isPortfolio = false;
+      }
+      if (userId && !finalQuery.clientId && finalQuery.isPortfolio !== true) {
         finalQuery.clientId = userId;
+      }
+    }
+
+    // For non-admin/non-architect users listing general models, default to public models
+    if (userRole !== 'ADMIN' && userRole !== 'ARCHITECT') {
+      if (finalQuery.isPublic === undefined) {
+        finalQuery.isPublic = true;
       }
     }
 
