@@ -36,41 +36,45 @@ export class PortfolioService {
     const thumbnailUrl = isImage ? fileUrl : (meta.thumbnailUrl || null);
     const formatStr = ext.replace('.', '').toUpperCase();
 
-    const item = await prisma.portfolioItem.create({
-      data: {
-        title,
-        category,
-        description: meta.description || null,
-        modelUrl,
-        thumbnailUrl,
-        sizeBytes: BigInt(file.size),
-        format: formatStr,
-        isPublic,
-        createdById: userId,
-      },
-    });
-
-    // Also sync to Model table so 3D model list and viewer find it
-    if (!isImage || modelUrl) {
-      const formatEnum = formatStr === '3DS' ? ModelFormat.THREE_DS : (ModelFormat[formatStr as keyof typeof ModelFormat] ?? ModelFormat.GLB);
-      await prisma.model.create({
+    // Atomic transaction for dual-table creation
+    const item = await prisma.$transaction(async (tx) => {
+      const createdItem = await tx.portfolioItem.create({
         data: {
-          id: item.id,
-          name: title,
+          title,
+          category,
           description: meta.description || null,
-          format: formatEnum,
-          status: ModelStatus.READY,
-          fileSize: BigInt(file.size),
-          originalName: file.originalname,
-          storagePath: key,
-          publicUrl: modelUrl || fileUrl,
+          modelUrl,
           thumbnailUrl,
-          isPortfolio: true,
+          sizeBytes: BigInt(file.size),
+          format: formatStr,
           isPublic,
-          uploadedById: userId,
+          createdById: userId,
         },
-      }).catch(() => {});
-    }
+      });
+
+      if (!isImage || modelUrl) {
+        const formatEnum = formatStr === '3DS' ? ModelFormat.THREE_DS : (ModelFormat[formatStr as keyof typeof ModelFormat] ?? ModelFormat.GLB);
+        await tx.model.create({
+          data: {
+            id: createdItem.id,
+            name: title,
+            description: meta.description || null,
+            format: formatEnum,
+            status: ModelStatus.READY,
+            fileSize: BigInt(file.size),
+            originalName: file.originalname,
+            storagePath: key,
+            publicUrl: modelUrl || fileUrl,
+            thumbnailUrl,
+            isPortfolio: true,
+            isPublic,
+            uploadedById: userId,
+          },
+        }).catch(() => {});
+      }
+
+      return createdItem;
+    });
 
     try {
       const io = socketService.getIO();
@@ -90,48 +94,52 @@ export class PortfolioService {
     const category = data.category || 'Residential';
     const formatStr = data.format ? data.format.replace('.', '').toUpperCase() : (modelUrl ? path.extname(modelUrl).replace('.', '').toUpperCase() : null);
 
-    // If projectId is supplied, update that project's isPublic flag to true as well
-    if (data.projectId) {
-      await prisma.project.update({
-        where: { id: data.projectId },
-        data: { isPublic: true, status: 'PUBLISHED' },
-      }).catch(() => {});
-    }
+    // Atomic transaction for dual-table creation
+    const item = await prisma.$transaction(async (tx) => {
+      if (data.projectId) {
+        await tx.project.update({
+          where: { id: data.projectId },
+          data: { isPublic: true, status: 'PUBLISHED' },
+        }).catch(() => {});
+      }
 
-    const item = await prisma.portfolioItem.create({
-      data: {
-        title,
-        category,
-        description: data.description || null,
-        modelUrl,
-        thumbnailUrl,
-        sizeBytes: data.sizeBytes ? BigInt(data.sizeBytes) : null,
-        format: formatStr,
-        isPublic,
-        createdById: userId,
-      },
-    });
-
-    if (modelUrl) {
-      const formatEnum = formatStr === '3DS' ? ModelFormat.THREE_DS : (ModelFormat[(formatStr || 'GLB') as keyof typeof ModelFormat] ?? ModelFormat.GLB);
-      await prisma.model.create({
+      const createdItem = await tx.portfolioItem.create({
         data: {
-          id: item.id,
-          name: title,
+          title,
+          category,
           description: data.description || null,
-          format: formatEnum,
-          status: ModelStatus.READY,
-          fileSize: data.sizeBytes ? BigInt(data.sizeBytes) : BigInt(0),
-          originalName: `${title}.${(formatStr || 'glb').toLowerCase()}`,
-          storagePath: modelUrl,
-          publicUrl: modelUrl,
+          modelUrl,
           thumbnailUrl,
-          isPortfolio: true,
+          sizeBytes: data.sizeBytes ? BigInt(data.sizeBytes) : null,
+          format: formatStr,
           isPublic,
-          uploadedById: userId,
+          createdById: userId,
         },
-      }).catch(() => {});
-    }
+      });
+
+      if (modelUrl) {
+        const formatEnum = formatStr === '3DS' ? ModelFormat.THREE_DS : (ModelFormat[(formatStr || 'GLB') as keyof typeof ModelFormat] ?? ModelFormat.GLB);
+        await tx.model.create({
+          data: {
+            id: createdItem.id,
+            name: title,
+            description: data.description || null,
+            format: formatEnum,
+            status: ModelStatus.READY,
+            fileSize: data.sizeBytes ? BigInt(data.sizeBytes) : BigInt(0),
+            originalName: `${title}.${(formatStr || 'glb').toLowerCase()}`,
+            storagePath: modelUrl,
+            publicUrl: modelUrl,
+            thumbnailUrl,
+            isPortfolio: true,
+            isPublic,
+            uploadedById: userId,
+          },
+        }).catch(() => {});
+      }
+
+      return createdItem;
+    });
 
     try {
       const io = socketService.getIO();
@@ -255,13 +263,11 @@ export class PortfolioService {
     if (item.createdById !== userId && role !== 'ADMIN') {
       throw ApiError.forbidden('You do not have permission to delete this item');
     }
-    await prisma.portfolioItem.delete({
-      where: { id },
-    });
 
-    await prisma.model.delete({
-      where: { id },
-    }).catch(() => {});
+    await prisma.$transaction(async (tx) => {
+      await tx.portfolioItem.delete({ where: { id } }).catch(() => {});
+      await tx.model.delete({ where: { id } }).catch(() => {});
+    });
 
     try {
       const io = socketService.getIO();

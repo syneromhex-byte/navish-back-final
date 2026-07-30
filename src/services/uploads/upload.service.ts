@@ -136,43 +136,47 @@ export class UploadService {
       const title = dto.title || dto.modelName || session.fileName.replace(/\.[^.]+$/, '');
       const category = dto.category || sessionMeta.category || 'Residential';
 
-      const portfolioItem = await prisma.portfolioItem.create({
-        data: {
-          title,
-          category,
-          description: dto.description || null,
-          modelUrl: publicUrl,
-          sizeBytes: session.fileSize,
-          format: ext,
-          isPublic,
-          createdById: userId,
-        },
-      });
+      const portfolioItem = await prisma.$transaction(async (tx) => {
+        const item = await tx.portfolioItem.create({
+          data: {
+            title,
+            category,
+            description: dto.description || null,
+            modelUrl: publicUrl,
+            sizeBytes: session.fileSize,
+            format: ext,
+            isPublic,
+            createdById: userId,
+          },
+        });
 
-      // Also create Model record for full cross-compatibility across all model views
-      const formatEnum = ext === '3DS' ? ModelFormat.THREE_DS : (ModelFormat[ext as keyof typeof ModelFormat] ?? ModelFormat.GLB);
-      await prisma.model.create({
-        data: {
-          id: portfolioItem.id,
-          name: title,
-          description: dto.description || null,
-          format: formatEnum,
-          status: ModelStatus.READY,
-          fileSize: session.fileSize,
-          originalName: session.fileName,
-          storagePath: session.s3Key,
-          publicUrl: publicUrl,
-          mimeType: session.mimeType,
-          uploadedById: userId,
-          clientId: null,
-          isPortfolio: true,
-          isPublic,
-        },
-      }).catch(() => {});
+        // Also create Model record for full cross-compatibility across all model views
+        const formatEnum = ext === '3DS' ? ModelFormat.THREE_DS : (ModelFormat[ext as keyof typeof ModelFormat] ?? ModelFormat.GLB);
+        await tx.model.create({
+          data: {
+            id: item.id,
+            name: title,
+            description: dto.description || null,
+            format: formatEnum,
+            status: ModelStatus.READY,
+            fileSize: session.fileSize,
+            originalName: session.fileName,
+            storagePath: session.s3Key,
+            publicUrl: publicUrl,
+            mimeType: session.mimeType,
+            uploadedById: userId,
+            clientId: null,
+            isPortfolio: true,
+            isPublic,
+          },
+        }).catch(() => {});
 
-      await prisma.uploadSession.update({
-        where: { id: session.id },
-        data: { status: UploadStatus.COMPLETED, completedAt: new Date() },
+        await tx.uploadSession.update({
+          where: { id: session.id },
+          data: { status: UploadStatus.COMPLETED, completedAt: new Date() },
+        });
+
+        return item;
       });
 
       try {

@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { portfolioController } from '../controllers/portfolio/portfolio.controller';
 import { validate } from '../middleware/validation.middleware';
 import { authenticate, optionalAuthenticate } from '../middleware/auth.middleware';
@@ -9,9 +9,17 @@ import { UserRole } from '@prisma/client';
 
 const router = Router();
 
-// Public / Client routes (Optional Auth attached so req.user is set when logged in)
-router.get('/', optionalAuthenticate, portfolioController.listPortfolioItems);
-router.get('/:id', optionalAuthenticate, portfolioController.getPortfolioItem);
+// Add cache-control header middleware to disable caching on public portfolio routes
+const noCache = (_req: Request, res: Response, next: NextFunction): void => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate, max-age=0');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  next();
+};
+
+// Public / Client routes (Optional Auth attached so req.user is set when logged in, noCache attached)
+router.get('/', optionalAuthenticate, noCache, portfolioController.listPortfolioItems);
+router.get('/:id', optionalAuthenticate, noCache, portfolioController.getPortfolioItem);
 
 // Protected routes (Admin / Architect)
 router.use(authenticate);
