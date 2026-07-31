@@ -73,7 +73,7 @@ export const uploadToS3 = async (
 };
 
 // ── Generate presigned GET URL ────────────────────────────────────────────────
-export const getPresignedGetUrl = async (key: string, expiresIn = 86400): Promise<string> => {
+export const getPresignedGetUrl = async (key: string, expiresIn = 604800): Promise<string> => {
   if (isLocalMock) {
     return getPermanentS3Url(key);
   }

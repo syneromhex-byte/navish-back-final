@@ -10,7 +10,7 @@ export class ModelController {
   });
 
   getPresignedUrl = asyncHandler(async (req: Request, res: Response) => {
-    const expiresIn = req.query.expiresIn ? parseInt(req.query.expiresIn as string, 10) : 3600;
+    const expiresIn = req.query.expiresIn ? parseInt(req.query.expiresIn as string, 10) : 604800;
     const result = await modelService.getPresignedUrl(req.params.id, expiresIn);
     return ApiResponse.success(res, result, 'Presigned GET URL generated successfully');
   });

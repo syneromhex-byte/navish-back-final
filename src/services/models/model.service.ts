@@ -8,7 +8,7 @@ import { socketService } from '../../sockets';
 export class ModelService {
   async getModelUrl(storagePathOrId: string, fileName?: string): Promise<string> {
     const key = fileName ? `models/${storagePathOrId}/${fileName}` : storagePathOrId;
-    return getPresignedGetUrl(key, 86400);
+    return getPresignedGetUrl(key, 604800);
   }
 
   async getModelById(id: string) {
@@ -18,7 +18,7 @@ export class ModelService {
     let presignedUrl: string | null = null;
     if (model.storagePath) {
       try {
-        presignedUrl = await getPresignedGetUrl(model.storagePath, 86400);
+        presignedUrl = await getPresignedGetUrl(model.storagePath, 604800);
       } catch (err) {
         logger.error(`Failed to generate presigned GET URL for model ${id}`, { error: err });
       }
@@ -30,7 +30,7 @@ export class ModelService {
     };
   }
 
-  async getPresignedUrl(id: string, expiresIn = 86400) {
+  async getPresignedUrl(id: string, expiresIn = 604800) {
     const model = await modelRepository.findById(id);
     if (!model) throw ApiError.notFound('Model not found');
     if (!model.storagePath) throw ApiError.badRequest('Model does not have a valid storage path');
