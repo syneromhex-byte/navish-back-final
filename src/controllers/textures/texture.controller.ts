@@ -22,7 +22,7 @@ export class TextureController {
 
   deleteTexture = asyncHandler(async (req: Request, res: Response) => {
     await textureService.deleteTexture(req.params.id);
-    return ApiResponse.success(res, null, 'Texture deleted successfully');
+    return ApiResponse.deleted(res, req.params.id, 'texture', 'Texture deleted successfully');
   });
 
   getSignedUrl = asyncHandler(async (req: Request, res: Response) => {

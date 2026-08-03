@@ -40,7 +40,7 @@ export class ModelController {
   deleteModel = asyncHandler(async (req: Request, res: Response) => {
     if (!req.user) return res.sendStatus(401);
     await modelService.deleteModel(req.params.id, req.user.id, req.user.role);
-    return ApiResponse.success(res, null, 'Model deleted successfully');
+    return ApiResponse.deleted(res, req.params.id, 'model', 'Model deleted successfully');
   });
 
   getVersions = asyncHandler(async (req: Request, res: Response) => {

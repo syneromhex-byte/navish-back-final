@@ -78,6 +78,7 @@ export class PortfolioService {
 
     try {
       const io = socketService.getIO();
+      io.emit('ENTITY_CREATED', { id: item.id, entityType: 'portfolio', data: item });
       io.emit('portfolio:created', item);
     } catch {
       // Suppress if socket service isn't active
@@ -143,6 +144,7 @@ export class PortfolioService {
 
     try {
       const io = socketService.getIO();
+      io.emit('ENTITY_CREATED', { id: item.id, entityType: 'portfolio', data: item });
       io.emit('portfolio:created', item);
     } catch {
       // Suppress if socket service isn't active
@@ -255,6 +257,14 @@ export class PortfolioService {
       },
     }).catch(() => {});
 
+    try {
+      const io = socketService.getIO();
+      io.emit('ENTITY_UPDATED', { id: updated.id, entityType: 'portfolio', data: updated });
+      io.emit('portfolio:updated', updated);
+    } catch {
+      // Suppress if socket service isn't active
+    }
+
     return updated;
   }
 
@@ -271,6 +281,7 @@ export class PortfolioService {
 
     try {
       const io = socketService.getIO();
+      io.emit('ENTITY_DELETED', { id, entityType: 'portfolio' });
       io.emit('portfolio:deleted', { id });
     } catch {
       // Suppress if socket service isn't active

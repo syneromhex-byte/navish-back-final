@@ -29,7 +29,7 @@ export class RoomController {
   deleteRoom = asyncHandler(async (req: Request, res: Response) => {
     if (!req.user) return res.sendStatus(401);
     await roomService.deleteRoom(req.params.id, req.user.id, req.user.role);
-    return ApiResponse.success(res, null, 'Room deleted successfully');
+    return ApiResponse.deleted(res, req.params.id, 'room', 'Room deleted successfully');
   });
 
   assignModel = asyncHandler(async (req: Request, res: Response) => {
@@ -39,7 +39,7 @@ export class RoomController {
 
   removeModel = asyncHandler(async (req: Request, res: Response) => {
     await roomService.removeModel(req.params.id, req.params.modelId);
-    return ApiResponse.success(res, null, 'Model removed from room successfully');
+    return ApiResponse.deleted(res, req.params.modelId, 'room_model', 'Model removed from room successfully');
   });
 }
 

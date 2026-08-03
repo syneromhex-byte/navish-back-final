@@ -43,7 +43,7 @@ export class PortfolioController {
   deletePortfolioItem = asyncHandler(async (req: Request, res: Response) => {
     if (!req.user) return res.sendStatus(401);
     await portfolioService.deletePortfolioItem(req.params.id, req.user.id, req.user.role);
-    return ApiResponse.success(res, null, 'Portfolio item deleted successfully');
+    return ApiResponse.deleted(res, req.params.id, 'portfolio', 'Portfolio item and related assets deleted successfully');
   });
 }
 

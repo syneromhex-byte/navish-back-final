@@ -37,7 +37,7 @@ export class EnvironmentController {
 
   deleteEnvironment = asyncHandler(async (req: Request, res: Response) => {
     await environmentService.deleteEnvironment(req.params.id);
-    return ApiResponse.success(res, null, 'Environment deleted successfully');
+    return ApiResponse.deleted(res, req.params.id, 'environment', 'Environment deleted successfully');
   });
 }
 

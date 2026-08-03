@@ -31,6 +31,22 @@ export class ApiResponse {
     return res.status(204).send();
   }
 
+  static deleted(
+    res: Response,
+    deletedId: string,
+    entityType: string,
+    message = 'Entity deleted successfully',
+  ): Response {
+    return res.status(200).json({
+      success: true,
+      statusCode: 200,
+      deletedId,
+      entityType,
+      message,
+      data: { deletedId, entityType },
+    });
+  }
+
   static paginated<T>(
     res: Response,
     data: T[],

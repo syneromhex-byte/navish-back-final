@@ -26,7 +26,7 @@ export class LightingController {
 
   deleteLighting = asyncHandler(async (req: Request, res: Response) => {
     await lightingService.deleteLighting(req.params.id);
-    return ApiResponse.success(res, null, 'Lighting deleted successfully');
+    return ApiResponse.deleted(res, req.params.id, 'lighting', 'Lighting deleted successfully');
   });
 
   setActiveLighting = asyncHandler(async (req: Request, res: Response) => {

@@ -3,13 +3,20 @@ import { uploadToS3, buildS3Key } from '../../config/aws';
 import { ApiError } from '../../utils/ApiError';
 import { S3Prefix } from '../../types';
 import { v4 as uuidv4 } from 'uuid';
+import { socketService } from '../../sockets';
 
 export class EnvironmentService {
   async createEnvironment(roomId: string, data: { name: string; description?: string; preset?: string; intensity?: number; rotation?: number }) {
     const room = await prisma.room.findFirst({ where: { id: roomId, deletedAt: null } });
     if (!room) throw ApiError.notFound('Room not found');
 
-    return prisma.environment.create({ data: { roomId, ...data } });
+    const env = await prisma.environment.create({ data: { roomId, ...data } });
+    try {
+      const io = socketService.getIO();
+      io.emit('ENTITY_CREATED', { id: env.id, entityType: 'environment', data: env });
+      io.emit('environment:created', env);
+    } catch {}
+    return env;
   }
 
   async uploadHdr(environmentId: string, file: Express.Multer.File): Promise<string> {
@@ -38,7 +45,13 @@ export class EnvironmentService {
   }
 
   async updateEnvironment(id: string, data: Partial<{ name: string; description: string; preset: string; intensity: number; rotation: number; isDefault: boolean }>) {
-    return prisma.environment.update({ where: { id }, data });
+    const env = await prisma.environment.update({ where: { id }, data });
+    try {
+      const io = socketService.getIO();
+      io.emit('ENTITY_UPDATED', { id: env.id, entityType: 'environment', data: env });
+      io.emit('environment:updated', env);
+    } catch {}
+    return env;
   }
 
   async setDefault(roomId: string, environmentId: string): Promise<void> {
@@ -50,6 +63,11 @@ export class EnvironmentService {
 
   async deleteEnvironment(id: string): Promise<void> {
     await prisma.environment.delete({ where: { id } });
+    try {
+      const io = socketService.getIO();
+      io.emit('ENTITY_DELETED', { id, entityType: 'environment' });
+      io.emit('environment:deleted', { id });
+    } catch {}
   }
 }
 

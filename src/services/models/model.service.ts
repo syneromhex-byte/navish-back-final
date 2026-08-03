@@ -123,7 +123,13 @@ export class ModelService {
       throw ApiError.forbidden('You can only modify your own models');
     }
 
-    return modelRepository.updateMetadata(id, data as any);
+    const updated = await modelRepository.updateMetadata(id, data as any);
+    try {
+      const io = socketService.getIO();
+      io.emit('ENTITY_UPDATED', { id: updated.id, entityType: 'model', data: updated });
+      io.emit('model:updated', updated);
+    } catch {}
+    return updated;
   }
 
   async deleteModel(id: string, userId: string, userRole: UserRole): Promise<void> {
@@ -147,6 +153,7 @@ export class ModelService {
 
     try {
       const io = socketService.getIO();
+      io.emit('ENTITY_DELETED', { id, entityType: 'model' });
       io.emit('model:deleted', { id });
     } catch {
       // Suppress if socket service isn't active

@@ -248,7 +248,7 @@ model Client {
   updatedAt       DateTime  @updatedAt
   deletedAt       DateTime?
 
-  user            User      @relation("ClientUser", fields: [userId], references: [id])
+  user            User      @relation("ClientUser", fields: [userId], references: [id], onDelete: Cascade)
   projects        Project[] @relation("ClientProjects")
   shareLinks      ShareLink[]
 
@@ -279,8 +279,8 @@ model Project {
   deletedAt       DateTime?
   publishedAt     DateTime?
 
-  owner           User          @relation("ProjectOwner", fields: [ownerId], references: [id])
-  client          Client?       @relation("ClientProjects", fields: [clientId], references: [id])
+  owner           User          @relation("ProjectOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  client          Client?       @relation("ClientProjects", fields: [clientId], references: [id], onDelete: Cascade)
   members         ProjectMember[]
   rooms           Room[]
   versions        ProjectVersion[]
@@ -568,7 +568,7 @@ model Lighting {
   updatedAt           DateTime  @updatedAt
 
   room                Room      @relation(fields: [roomId], references: [id], onDelete: Cascade)
-  environment         Environment? @relation(fields: [environmentMapId], references: [id])
+  environment         Environment? @relation(fields: [environmentMapId], references: [id], onDelete: SetNull)
 
   @@index([roomId])
   @@map("lighting")
@@ -656,7 +656,7 @@ model ShareLink {
   updatedAt         DateTime        @updatedAt
 
   project           Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  client            Client?         @relation(fields: [clientId], references: [id])
+  client            Client?         @relation(fields: [clientId], references: [id], onDelete: Cascade)
   accessLogs        ShareAccessLog[]
 
   @@index([projectId])
@@ -698,7 +698,7 @@ model Analytics {
   metadata    Json?              @default("{}")
   createdAt   DateTime           @default(now())
 
-  project     Project?           @relation(fields: [projectId], references: [id])
+  project     Project?           @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([projectId])
   @@index([entityType, entityId])
@@ -725,7 +725,7 @@ model Notification {
   createdAt   DateTime         @default(now())
 
   user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  project     Project?         @relation(fields: [projectId], references: [id])
+  project     Project?         @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([userId, isRead])
   @@index([userId])

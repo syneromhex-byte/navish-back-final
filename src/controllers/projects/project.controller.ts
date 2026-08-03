@@ -39,7 +39,7 @@ export class ProjectController {
   deleteProject = asyncHandler(async (req: Request, res: Response) => {
     if (!req.user) return res.sendStatus(401);
     await projectService.deleteProject(req.params.id, req.user.id, req.user.role);
-    return ApiResponse.success(res, null, 'Project deleted successfully');
+    return ApiResponse.deleted(res, req.params.id, 'project', 'Project deleted successfully');
   });
 
   uploadThumbnail = asyncHandler(async (req: Request, res: Response) => {
@@ -63,7 +63,7 @@ export class ProjectController {
   removeMember = asyncHandler(async (req: Request, res: Response) => {
     if (!req.user) return res.sendStatus(401);
     await projectService.removeMember(req.params.id, req.params.userId, req.user.id, req.user.role);
-    return ApiResponse.success(res, null, 'Member removed successfully');
+    return ApiResponse.deleted(res, req.params.userId, 'project_member', 'Member removed successfully');
   });
 
   createVersion = asyncHandler(async (req: Request, res: Response) => {

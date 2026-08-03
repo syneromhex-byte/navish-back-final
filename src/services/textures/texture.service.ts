@@ -61,6 +61,12 @@ export class TextureService {
       },
     });
 
+    try {
+      const io = socketService.getIO();
+      io.emit('ENTITY_CREATED', { id: texture.id, entityType: 'texture', data: texture });
+      io.emit('texture:created', texture);
+    } catch {}
+
     return texture;
   }
 
@@ -104,6 +110,7 @@ export class TextureService {
 
     try {
       const io = socketService.getIO();
+      io.emit('ENTITY_DELETED', { id, entityType: 'texture' });
       io.emit('texture:deleted', { id });
     } catch {
       // Suppress if socket service isn't active

@@ -27,11 +27,23 @@ export class ProjectService {
       tags: meta.tags || [],
     }, ownerId);
 
+    try {
+      const io = socketService.getIO();
+      io.emit('ENTITY_CREATED', { id: project.id, entityType: 'project', data: project });
+      io.emit('project:created', project);
+    } catch {}
+
     return project;
   }
 
   async createProject(dto: CreateProjectDto, ownerId: string) {
-    return projectRepository.create(dto, ownerId);
+    const project = await projectRepository.create(dto, ownerId);
+    try {
+      const io = socketService.getIO();
+      io.emit('ENTITY_CREATED', { id: project.id, entityType: 'project', data: project });
+      io.emit('project:created', project);
+    } catch {}
+    return project;
   }
 
   async getProjectById(id: string, userId: string, userRole: UserRole, userEmail?: string) {
@@ -54,7 +66,13 @@ export class ProjectService {
       throw ApiError.forbidden('Only the project owner or admin can update this project');
     }
 
-    return projectRepository.update(id, dto);
+    const updated = await projectRepository.update(id, dto);
+    try {
+      const io = socketService.getIO();
+      io.emit('ENTITY_UPDATED', { id: updated.id, entityType: 'project', data: updated });
+      io.emit('project:updated', updated);
+    } catch {}
+    return updated;
   }
 
   async deleteProject(id: string, userId: string, userRole: UserRole): Promise<void> {
@@ -69,6 +87,7 @@ export class ProjectService {
 
     try {
       const io = socketService.getIO();
+      io.emit('ENTITY_DELETED', { id, entityType: 'project' });
       io.emit('project:deleted', { id });
     } catch {
       // Suppress if socket service isn't active

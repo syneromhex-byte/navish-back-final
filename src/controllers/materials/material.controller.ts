@@ -26,7 +26,7 @@ export class MaterialController {
 
   deleteMaterial = asyncHandler(async (req: Request, res: Response) => {
     await materialService.deleteMaterial(req.params.id);
-    return ApiResponse.success(res, null, 'Material deleted successfully');
+    return ApiResponse.deleted(res, req.params.id, 'material', 'Material deleted successfully');
   });
 
   bulkUpdateMaterials = asyncHandler(async (req: Request, res: Response) => {

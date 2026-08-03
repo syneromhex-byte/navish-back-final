@@ -32,7 +32,7 @@ export class ClientController {
 
   deleteClient = asyncHandler(async (req: Request, res: Response) => {
     await clientService.deleteClient(req.params.id);
-    return ApiResponse.success(res, null, 'Client deleted successfully');
+    return ApiResponse.deleted(res, req.params.id, 'client', 'Client deleted successfully');
   });
 }
 

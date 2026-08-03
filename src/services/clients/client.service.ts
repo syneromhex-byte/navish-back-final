@@ -5,11 +5,18 @@ import { S3Prefix } from '../../types';
 import sharp from 'sharp';
 import { v4 as uuidv4 } from 'uuid';
 import type { CreateClientDto, UpdateClientDto } from '../../validators/client.validator';
+import { socketService } from '../../sockets';
 
 export class ClientService {
   async createClient(dto: CreateClientDto) {
     try {
-      return await clientRepository.create(dto);
+      const client = await clientRepository.create(dto);
+      try {
+        const io = socketService.getIO();
+        io.emit('ENTITY_CREATED', { id: client.id, entityType: 'client', data: client });
+        io.emit('client:created', client);
+      } catch {}
+      return client;
     } catch (err: any) {
       if (err?.code === 'P2002') throw ApiError.conflict('Email already registered');
       throw err;
@@ -35,7 +42,13 @@ export class ClientService {
   async updateClient(id: string, dto: UpdateClientDto) {
     const existing = await clientRepository.findById(id);
     if (!existing) throw ApiError.notFound('Client not found');
-    return clientRepository.update(id, dto);
+    const updated = await clientRepository.update(id, dto);
+    try {
+      const io = socketService.getIO();
+      io.emit('ENTITY_UPDATED', { id: updated.id, entityType: 'client', data: updated });
+      io.emit('client:updated', updated);
+    } catch {}
+    return updated;
   }
 
   async uploadLogo(clientId: string, file: Express.Multer.File): Promise<string> {
@@ -55,6 +68,12 @@ export class ClientService {
     const existing = await clientRepository.findById(id);
     if (!existing) throw ApiError.notFound('Client not found');
     await clientRepository.softDelete(id);
+
+    try {
+      const io = socketService.getIO();
+      io.emit('ENTITY_DELETED', { id, entityType: 'client' });
+      io.emit('client:deleted', { id });
+    } catch {}
   }
 }
 
