@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls \"C:\\\\Users\\\\spenc\\\\navish full form\" 2>&1)"
+    ]
+  }
+}
