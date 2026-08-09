@@ -31,15 +31,12 @@ export function formatProjectResponse(project: any) {
   const modelUrl = meta.modelUrl || meta.fileUrl || firstRoomModelPublicUrl || project.coverImageUrl || null;
 
   return {
+    ...meta,
     ...project,
     modelId,
     model_id: modelId,
     fileUrl,
     modelUrl,
-    ...meta,
-    ...(modelId !== null ? { modelId, model_id: modelId } : {}),
-    ...(fileUrl !== null ? { fileUrl } : {}),
-    ...(modelUrl !== null ? { modelUrl } : {}),
   };
 }
 

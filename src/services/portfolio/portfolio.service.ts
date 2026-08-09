@@ -5,6 +5,7 @@ import { uploadToS3, buildS3Key } from '../../config/aws';
 import { S3Prefix } from '../../types';
 import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
+import { logger } from '../../config/logger';
 
 const prisma = new PrismaClient();
 
@@ -70,7 +71,10 @@ export class PortfolioService {
             isPublic,
             uploadedById: userId,
           },
-        }).catch(() => {});
+        }).catch((err) => {
+          logger.error('Failed to create Model record for portfolio upload', { error: err.message, portfolioItemId: createdItem.id });
+          throw err;
+        });
       }
 
       return createdItem;
@@ -136,7 +140,10 @@ export class PortfolioService {
             isPublic,
             uploadedById: userId,
           },
-        }).catch(() => {});
+        }).catch((err) => {
+          logger.error('Failed to create Model record for portfolio item', { error: err.message, portfolioItemId: createdItem.id });
+          throw err;
+        });
       }
 
       return createdItem;
