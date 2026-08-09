@@ -50,6 +50,3 @@ dump.rdb
 db_logfile.log
 redis.zip
 
-# Claude local settings
-.claude/
-
