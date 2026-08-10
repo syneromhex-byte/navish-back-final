@@ -143,6 +143,7 @@ async function main() {
   const project = await prisma.project.upsert({
     where: { id: '84cd37f2-f930-48a9-b940-46e21964f1b1' },
     update: {
+      slug: 'navish-arc-project-84cd37f2',
       isPublic: true,
       status: ProjectStatus.PUBLISHED,
     },
@@ -150,7 +151,7 @@ async function main() {
       id: '84cd37f2-f930-48a9-b940-46e21964f1b1',
       name: 'Demo Luxury Apartment',
       description: 'A demonstration project showcasing NAVISH ARC capabilities.',
-      slug: 'demo-luxury-apartment',
+      slug: 'navish-arc-project-84cd37f2',
       status: ProjectStatus.PUBLISHED,
       ownerId: architect.id,
       clientId: (await prisma.client.findUnique({ where: { userId: clientUser.id } }))!.id,

@@ -95,5 +95,8 @@
   ],
   "author": "NAVISH",
   "license": "UNLICENSED",
-  "private": true
+  "private": true,
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  }
 }
