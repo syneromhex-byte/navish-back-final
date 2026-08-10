@@ -12,6 +12,9 @@ import apiRouter from './routes/index.routes';
 
 const app = express();
 
+// ── Trust Proxy (Nginx Reverse Proxy support) ─────────────────────────────────
+app.set('trust proxy', 1);
+
 // ── BigInt JSON Serialization Polyfill ────────────────────────────────────────
 (BigInt.prototype as any).toJSON = function () {
   const num = Number(this);
