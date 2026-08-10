@@ -176,6 +176,28 @@ async function main() {
   });
 
   console.log(`✅ Demo project: ${project.name} (${project.id})`);
+
+  // ── Secondary Project ─────────────────────────────────────────────────────────
+  const secondaryProject = await prisma.project.upsert({
+    where: { id: '61f969a7-0052-4cc1-a99f-c66a5472dc53' },
+    update: {
+      isPublic: true,
+      status: ProjectStatus.PUBLISHED,
+    },
+    create: {
+      id: '61f969a7-0052-4cc1-a99f-c66a5472dc53',
+      name: 'Navish Arc Secondary Project',
+      description: 'Portfolio project entry.',
+      slug: 'navish-arc-project-61f969a7',
+      status: ProjectStatus.PUBLISHED,
+      ownerId: architect.id,
+      clientId: (await prisma.client.findUnique({ where: { userId: clientUser.id } }))!.id,
+      tags: ['secondary', 'portfolio', 'demo'],
+      isPublic: true,
+      publishedAt: new Date(),
+    },
+  });
+  console.log(`✅ Secondary project: ${secondaryProject.name} (${secondaryProject.id})`);
   console.log('\n🎉 Database seeding complete!\n');
   console.log('Credentials:');
   console.log('  Admin:     admin@navish.com      / Admin@NavishArc2024!');
