@@ -19,14 +19,18 @@ export class ProjectController {
   });
 
   getProject = asyncHandler(async (req: Request, res: Response) => {
-    if (!req.user) return res.sendStatus(401);
-    const project = await projectService.getProjectById(req.params.id, req.user.id, req.user.role, req.user.email);
+    const userId = req.user?.id || '';
+    const userRole = req.user?.role || ('CLIENT' as any);
+    const userEmail = req.user?.email;
+    const project = await projectService.getProjectById(req.params.id, userId, userRole, userEmail);
     return ApiResponse.success(res, project);
   });
 
   listProjects = asyncHandler(async (req: Request, res: Response) => {
-    if (!req.user) return res.sendStatus(401);
-    const result = await projectService.listProjects(req.query as any, req.user.id, req.user.role, req.user.email);
+    const userId = req.user?.id || '';
+    const userRole = req.user?.role || ('GUEST' as any);
+    const userEmail = req.user?.email;
+    const result = await projectService.listProjects(req.query as any, userId, userRole, userEmail);
     return ApiResponse.paginated(res, result.data, result.meta);
   });
 

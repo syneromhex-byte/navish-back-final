@@ -141,9 +141,13 @@ async function main() {
 
   // ── Demo Project ─────────────────────────────────────────────────────────────
   const project = await prisma.project.upsert({
-    where: { slug: 'demo-luxury-apartment' },
-    update: {},
+    where: { id: '84cd37f2-f930-48a9-b940-46e21964f1b1' },
+    update: {
+      isPublic: true,
+      status: ProjectStatus.PUBLISHED,
+    },
     create: {
+      id: '84cd37f2-f930-48a9-b940-46e21964f1b1',
       name: 'Demo Luxury Apartment',
       description: 'A demonstration project showcasing NAVISH ARC capabilities.',
       slug: 'demo-luxury-apartment',
@@ -151,7 +155,7 @@ async function main() {
       ownerId: architect.id,
       clientId: (await prisma.client.findUnique({ where: { userId: clientUser.id } }))!.id,
       tags: ['luxury', 'apartment', 'demo'],
-      isPublic: false,
+      isPublic: true,
       publishedAt: new Date(),
     },
   });
@@ -170,7 +174,7 @@ async function main() {
     },
   });
 
-  console.log(`✅ Demo project: ${project.name}`);
+  console.log(`✅ Demo project: ${project.name} (${project.id})`);
   console.log('\n🎉 Database seeding complete!\n');
   console.log('Credentials:');
   console.log('  Admin:     admin@navish.com      / Admin@NavishArc2024!');

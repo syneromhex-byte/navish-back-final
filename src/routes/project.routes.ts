@@ -20,6 +20,7 @@ router.get('/share/:token', projectController.getByShareToken);
 
 // Public / list projects
 router.get('/', optionalAuthenticate, validate(listProjectsQuerySchema, 'query'), projectController.listProjects);
+router.get('/:id', optionalAuthenticate, projectController.getProject);
 
 router.use(authenticate);
 
@@ -27,7 +28,6 @@ router.post('/upload', requireRole(UserRole.ADMIN, UserRole.ARCHITECT), uploadIm
 
 router.post('/', requireRole(UserRole.ADMIN, UserRole.ARCHITECT), validate(createProjectSchema), projectController.createProject);
 
-router.get('/:id', projectController.getProject);
 router.put('/:id', validate(updateProjectSchema), projectController.updateProject);
 router.delete('/:id', projectController.deleteProject);
 
