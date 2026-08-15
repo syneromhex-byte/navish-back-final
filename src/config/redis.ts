@@ -50,7 +50,10 @@ export const createQueue = (name: string): Bull.Queue => {
       host: env.REDIS_HOST,
       port: env.REDIS_PORT,
       ...(env.REDIS_PASSWORD ? { password: env.REDIS_PASSWORD } : {}),
+      ...(env.REDIS_TLS ? { tls: {} } : {}),
       db: env.REDIS_DB,
+      maxRetriesPerRequest: null,
+      enableReadyCheck: false,
     },
     defaultJobOptions: {
       attempts: 3,
