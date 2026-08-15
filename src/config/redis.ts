@@ -16,8 +16,7 @@ const redisOptions: RedisOptions = {
       logger.error('Redis: max retries reached, giving up');
       return null;
     }
-    const delay = Math.min(times * 100, 3000);
-    return delay;
+    return Math.min(times * 100, 3000);
   },
   reconnectOnError: (err: Error) => {
     const targetErrors = ['READONLY', 'ECONNRESET', 'ECONNREFUSED'];
@@ -46,14 +45,23 @@ export const QueueNames = {
 // ── Bull queue factory ────────────────────────────────────────────────────────
 export const createQueue = (name: string): Bull.Queue => {
   const queue = new Bull(name, {
-    redis: {
-      host: env.REDIS_HOST,
-      port: env.REDIS_PORT,
-      ...(env.REDIS_PASSWORD ? { password: env.REDIS_PASSWORD } : {}),
-      ...(env.REDIS_TLS ? { tls: {} } : {}),
-      db: env.REDIS_DB,
-      maxRetriesPerRequest: null,
-      enableReadyCheck: false,
+    createClient: (type, opts) => {
+      const isBlockingClient = type === 'bclient' || type === 'subscriber';
+
+      const clientOptions: RedisOptions = {
+        ...redisOptions,
+        ...opts,
+        enableReadyCheck: isBlockingClient ? false : redisOptions.enableReadyCheck,
+        maxRetriesPerRequest: isBlockingClient ? null : 3,
+      };
+
+      const client = new Redis(clientOptions);
+
+      client.on('error', (error) => {
+        logger.error(`Bull Redis [${name}:${type}] error`, { error: error.message });
+      });
+
+      return client;
     },
     defaultJobOptions: {
       attempts: 3,
