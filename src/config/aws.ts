@@ -82,10 +82,16 @@ export const getPresignedGetUrl = async (key: string, expiresIn = 604800): Promi
 
 // ── Build permanent public URL (no signatures) ────────────────────────────────
 export const getPermanentS3Url = (fileKey: string): string => {
-  // Strip out query parameters if a full URL with signatures was passed
-  const cleanKey = fileKey.split('?')[0].replace(/^https?:\/\/[^\/]+\//, '');
+  if (!fileKey) return '';
+  // If it's already a full HTTP/HTTPS URL, preserve it and update old bucket reference if present
+  if (fileKey.startsWith('http://') || fileKey.startsWith('https://')) {
+    return fileKey.replace('navish-arc-assets.s3', 'navish-arc-assets-2026.s3');
+  }
+
+  const cleanKey = fileKey.split('?')[0].replace(/^\/+/, '');
   if (isLocalMock) {
-    return `${env.APP_URL}/storage/${cleanKey}`;
+    const baseUrl = env.APP_URL || `http://localhost:${env.PORT}`;
+    return `${baseUrl}/storage/${cleanKey}`;
   }
   if (env.AWS_S3_ENDPOINT) {
     return `${env.AWS_S3_ENDPOINT}/${BUCKET}/${cleanKey}`;

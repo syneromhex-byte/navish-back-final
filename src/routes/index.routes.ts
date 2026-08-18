@@ -49,6 +49,9 @@ router.use('/admin', adminRoutes);
 router.use('/contact', contactRoutes);
 router.use('/portfolio', portfolioRoutes);
 router.use('/public/portfolio', portfolioRoutes);
-router.use('/client/models', clientRoutes);
+import { modelController } from '../controllers/models/model.controller';
+import { optionalAuthenticate } from '../middleware/auth.middleware';
+
+router.get('/client/models', optionalAuthenticate, modelController.getClientModels);
 
 export default router;

@@ -26,6 +26,15 @@ export class ProjectController {
     return ApiResponse.success(res, project);
   });
 
+  getProjectByModelId = asyncHandler(async (req: Request, res: Response) => {
+    const userId = req.user?.id || '';
+    const userRole = req.user?.role || ('CLIENT' as any);
+    const userEmail = req.user?.email;
+    const modelId = req.params.modelId || req.params.id;
+    const project = await projectService.getProjectByModelId(modelId, userId, userRole, userEmail);
+    return ApiResponse.success(res, project);
+  });
+
   listProjects = asyncHandler(async (req: Request, res: Response) => {
     const userId = req.user?.id || '';
     const userRole = req.user?.role || ('GUEST' as any);

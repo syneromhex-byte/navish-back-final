@@ -24,9 +24,12 @@ export class ModelService {
       }
     }
 
+    const activeUrl = presignedUrl || model.publicUrl;
     return {
       ...model,
-      presignedUrl: presignedUrl || model.publicUrl,
+      presignedUrl: activeUrl,
+      fileUrl: activeUrl,
+      modelUrl: activeUrl,
     };
   }
 

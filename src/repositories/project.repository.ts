@@ -1,6 +1,7 @@
 import { prisma } from '../config/database';
 import { parsePaginationQuery, buildPaginationMeta, buildPrismaSkipTake } from '../utils/pagination';
 import { generateUniqueSlug } from '../utils/crypto';
+import { getPermanentS3Url } from '../config/aws';
 import type { CreateProjectDto, UpdateProjectDto, ListProjectsQuery } from '../validators/project.validator';
 import { Prisma } from '@prisma/client';
 
@@ -18,8 +19,8 @@ export function formatProjectResponse(project: any) {
         if (first.modelId || first.model?.id) {
           firstRoomModelId = first.modelId || first.model?.id;
         }
-        if (first.model?.publicUrl) {
-          firstRoomModelPublicUrl = first.model.publicUrl;
+        if (first.model?.publicUrl || first.model?.storagePath) {
+          firstRoomModelPublicUrl = first.model.publicUrl || first.model.storagePath;
         }
         if (firstRoomModelId) break;
       }
@@ -27,8 +28,11 @@ export function formatProjectResponse(project: any) {
   }
 
   const modelId = meta.modelId || meta.model_id || firstRoomModelId || null;
-  const fileUrl = meta.fileUrl || meta.modelUrl || firstRoomModelPublicUrl || project.coverImageUrl || null;
-  const modelUrl = meta.modelUrl || meta.fileUrl || firstRoomModelPublicUrl || project.coverImageUrl || null;
+  let rawFileUrl = meta.fileUrl || meta.modelUrl || firstRoomModelPublicUrl || project.coverImageUrl || null;
+  let rawModelUrl = meta.modelUrl || meta.fileUrl || firstRoomModelPublicUrl || project.coverImageUrl || null;
+
+  const fileUrl = rawFileUrl ? getPermanentS3Url(rawFileUrl) : null;
+  const modelUrl = rawModelUrl ? getPermanentS3Url(rawModelUrl) : null;
 
   return {
     ...meta,
@@ -116,8 +120,11 @@ export class ProjectRepository {
   }
 
   async findById(id: string, includeDeleted = false) {
-    const project = await prisma.project.findFirst({
-      where: { id, ...(includeDeleted ? {} : { deletedAt: null }) },
+    const deletedFilter = includeDeleted ? {} : { deletedAt: null };
+
+    // 1. Try finding by Project Primary ID
+    let project = await prisma.project.findFirst({
+      where: { id, ...deletedFilter },
       include: {
         owner: { select: { id: true, firstName: true, lastName: true, email: true } },
         client: { include: { user: { select: { firstName: true, lastName: true, email: true } } } },
@@ -134,7 +141,42 @@ export class ProjectRepository {
         _count: { select: { rooms: true, shareLinks: true, analytics: true } },
       },
     });
+
+    // 2. Fallback: Search by Slug, Model ID in Metadata, or Model ID in Rooms
+    if (!project) {
+      project = await prisma.project.findFirst({
+        where: {
+          ...deletedFilter,
+          OR: [
+            { slug: id },
+            { metadata: { path: ['modelId'], equals: id } },
+            { metadata: { path: ['model_id'], equals: id } },
+            { rooms: { some: { deletedAt: null, models: { some: { modelId: id, isActive: true } } } } },
+          ],
+        },
+        include: {
+          owner: { select: { id: true, firstName: true, lastName: true, email: true } },
+          client: { include: { user: { select: { firstName: true, lastName: true, email: true } } } },
+          rooms: {
+            where: { deletedAt: null },
+            orderBy: { sortOrder: 'asc' },
+            include: {
+              models: {
+                where: { isActive: true },
+                include: { model: true },
+              },
+            },
+          },
+          _count: { select: { rooms: true, shareLinks: true, analytics: true } },
+        },
+      });
+    }
+
     return formatProjectResponse(project);
+  }
+
+  async findByModelId(modelId: string, includeDeleted = false) {
+    return this.findById(modelId, includeDeleted);
   }
 
   async findBySlug(slug: string) {

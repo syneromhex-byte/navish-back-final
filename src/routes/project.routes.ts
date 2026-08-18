@@ -18,8 +18,13 @@ const router = Router();
 // Public share link viewer route
 router.get('/share/:token', projectController.getByShareToken);
 
+// Model-specific project lookups
+router.get('/model/:modelId', optionalAuthenticate, projectController.getProjectByModelId);
+router.get('/by-model/:modelId', optionalAuthenticate, projectController.getProjectByModelId);
+
 // Public / list projects
 router.get('/', optionalAuthenticate, validate(listProjectsQuerySchema, 'query'), projectController.listProjects);
+router.get('/:id/versions', optionalAuthenticate, projectController.getVersions);
 router.get('/:id', optionalAuthenticate, projectController.getProject);
 
 router.use(authenticate);

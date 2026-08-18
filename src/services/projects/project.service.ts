@@ -54,6 +54,14 @@ export class ProjectService {
     return project;
   }
 
+  async getProjectByModelId(modelId: string, userId: string, userRole: UserRole, userEmail?: string) {
+    const project = await projectRepository.findByModelId(modelId);
+    if (!project) throw ApiError.notFound('Project not found for this 3D model');
+
+    this.assertAccess(project, userId, userRole, userEmail);
+    return project;
+  }
+
   async listProjects(query: ListProjectsQuery, userId: string, userRole: UserRole, userEmail?: string) {
     return projectRepository.findMany(query, userId, userRole, userEmail);
   }
@@ -143,16 +151,24 @@ export class ProjectService {
 
   private assertAccess(project: any, userId: string, userRole: UserRole, userEmail?: string): void {
     if (userRole === UserRole.ADMIN || userRole === UserRole.ARCHITECT) return;
-    if (project.ownerId === userId) return;
-    const isMember = project.members?.some((m: any) => m.userId === userId);
-    const isClientUser = project.client?.userId === userId;
-    const isClientEmailMatch =
+    if (project.isPublic) return;
+    if (userId && project.ownerId === userId) return;
+
+    const hasPublicModel = project.rooms?.some((r: any) =>
+      r.models?.some((m: any) => m.model?.isPublic || m.model?.isPortfolio)
+    );
+    if (hasPublicModel) return;
+
+    const isMember = Boolean(userId && project.members?.some((m: any) => m.userId === userId));
+    const isClientUser = Boolean(userId && project.client?.userId === userId);
+    const isClientEmailMatch = Boolean(
       userEmail &&
       ((project.clientEmail && project.clientEmail.toLowerCase() === userEmail.toLowerCase()) ||
         (project.client?.user?.email && project.client.user.email.toLowerCase() === userEmail.toLowerCase()) ||
-        (project.metadata?.clientEmail && project.metadata.clientEmail.toLowerCase() === userEmail.toLowerCase()));
+        (project.metadata?.clientEmail && project.metadata.clientEmail.toLowerCase() === userEmail.toLowerCase()))
+    );
 
-    if (!isMember && !isClientUser && !isClientEmailMatch && !project.isPublic) {
+    if (!isMember && !isClientUser && !isClientEmailMatch) {
       throw ApiError.forbidden('Access denied to this project');
     }
   }
