@@ -5,6 +5,17 @@ import { getPermanentS3Url } from '../config/aws';
 import type { CreateProjectDto, UpdateProjectDto, ListProjectsQuery } from '../validators/project.validator';
 import { Prisma } from '@prisma/client';
 
+function cleanRawUrl(url: any): string | null {
+  if (!url || typeof url !== 'string') return null;
+  let str = url;
+  if (str.startsWith('https%3A') || str.startsWith('http%3A') || str.includes('%3A%2F%2F')) {
+    try {
+      str = decodeURIComponent(str);
+    } catch {}
+  }
+  return str;
+}
+
 export function formatProjectResponse(project: any) {
   if (!project) return null;
   const meta = (project.metadata as Record<string, any>) || {};
@@ -28,8 +39,8 @@ export function formatProjectResponse(project: any) {
   }
 
   const modelId = meta.modelId || meta.model_id || firstRoomModelId || null;
-  let rawFileUrl = meta.fileUrl || meta.modelUrl || firstRoomModelPublicUrl || project.coverImageUrl || null;
-  let rawModelUrl = meta.modelUrl || meta.fileUrl || firstRoomModelPublicUrl || project.coverImageUrl || null;
+  let rawFileUrl = cleanRawUrl(meta.fileUrl || meta.modelUrl || firstRoomModelPublicUrl || project.coverImageUrl || null);
+  let rawModelUrl = cleanRawUrl(meta.modelUrl || meta.fileUrl || firstRoomModelPublicUrl || project.coverImageUrl || null);
 
   const fileUrl = rawFileUrl ? getPermanentS3Url(rawFileUrl) : null;
   const modelUrl = rawModelUrl ? getPermanentS3Url(rawModelUrl) : null;

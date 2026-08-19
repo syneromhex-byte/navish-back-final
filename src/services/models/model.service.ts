@@ -1,6 +1,6 @@
 import { modelRepository } from '../../repositories/model.repository';
 import { ApiError } from '../../utils/ApiError';
-import { deleteFromS3, getPresignedGetUrl } from '../../config/aws';
+import { deleteFromS3, getPresignedGetUrl, getPermanentS3Url } from '../../config/aws';
 import { UserRole } from '@prisma/client';
 import { logger } from '../../config/logger';
 import { socketService } from '../../sockets';
@@ -24,9 +24,11 @@ export class ModelService {
       }
     }
 
-    const activeUrl = presignedUrl || model.publicUrl;
+    const rawPublicUrl = model.publicUrl ? getPermanentS3Url(model.publicUrl) : null;
+    const activeUrl = presignedUrl || rawPublicUrl;
     return {
       ...model,
+      publicUrl: rawPublicUrl || model.publicUrl,
       presignedUrl: activeUrl,
       fileUrl: activeUrl,
       modelUrl: activeUrl,
@@ -101,9 +103,14 @@ export class ModelService {
             presignedUrl = null;
           }
         }
+        const rawPublicUrl = model.publicUrl ? getPermanentS3Url(model.publicUrl) : null;
+        const activeUrl = presignedUrl || rawPublicUrl;
         return {
           ...model,
-          presignedUrl: presignedUrl || model.publicUrl,
+          publicUrl: rawPublicUrl || model.publicUrl,
+          presignedUrl: activeUrl,
+          fileUrl: activeUrl,
+          modelUrl: activeUrl,
         };
       })
     );

@@ -73,22 +73,46 @@ export const uploadToS3 = async (
 };
 
 // ── Generate presigned GET URL ────────────────────────────────────────────────
+export async function generatePresignedUrl(bucketName: string, objectKey: string): Promise<string> {
+  const cleanKey = objectKey ? objectKey.replace(/^https?:\/\/[^\/]+\//, '').split('?')[0].replace(/^\/+/, '') : objectKey;
+  const command = new GetObjectCommand({
+    Bucket: bucketName || BUCKET,
+    Key: cleanKey,
+  });
+
+  // Generate a clean pre-signed URL valid for 7 days (604800 seconds)
+  const signedUrl = await getSignedUrl(s3, command, { expiresIn: 604800 });
+
+  // CRITICAL: Return this exact string raw. Do NOT wrap it in encodeURIComponent()
+  return signedUrl;
+}
+
 export const getPresignedGetUrl = async (key: string, expiresIn = 604800): Promise<string> => {
   if (isLocalMock) {
     return getPermanentS3Url(key);
   }
-  return getSignedUrl(s3, new GetObjectCommand({ Bucket: BUCKET, Key: key }), { expiresIn });
+  const cleanKey = key ? key.replace(/^https?:\/\/[^\/]+\//, '').split('?')[0].replace(/^\/+/, '') : key;
+  return getSignedUrl(s3, new GetObjectCommand({ Bucket: BUCKET, Key: cleanKey }), { expiresIn });
 };
 
 // ── Build permanent public URL (no signatures) ────────────────────────────────
 export const getPermanentS3Url = (fileKey: string): string => {
   if (!fileKey) return '';
-  // If it's already a full HTTP/HTTPS URL, preserve it and update old bucket reference if present
-  if (fileKey.startsWith('http://') || fileKey.startsWith('https://')) {
-    return fileKey.replace('navish-arc-assets.s3', 'navish-arc-assets-2026.s3');
+  let keyStr = fileKey;
+  if (keyStr.startsWith('https%3A') || keyStr.startsWith('http%3A') || keyStr.includes('%3A%2F%2F')) {
+    try {
+      keyStr = decodeURIComponent(keyStr);
+    } catch {
+      keyStr = fileKey;
+    }
   }
 
-  const cleanKey = fileKey.split('?')[0].replace(/^\/+/, '');
+  // If it's already a full HTTP/HTTPS URL, preserve it and update old bucket reference if present
+  if (keyStr.startsWith('http://') || keyStr.startsWith('https://')) {
+    return keyStr.replace('navish-arc-assets.s3', 'navish-arc-assets-2026.s3');
+  }
+
+  const cleanKey = keyStr.split('?')[0].replace(/^\/+/, '');
   if (isLocalMock) {
     const baseUrl = env.APP_URL || `http://localhost:${env.PORT}`;
     return `${baseUrl}/storage/${cleanKey}`;
